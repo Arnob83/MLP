@@ -97,6 +97,8 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
+
+
 # SHAP explanation function
 def explain_prediction(input_data, final_result):
     # We need to define a function that works with SHAP's KernelExplainer.
@@ -107,8 +109,11 @@ def explain_prediction(input_data, final_result):
     explainer = shap.KernelExplainer(model_predict, input_data)
     shap_values = explainer.shap_values(input_data)
 
-    # We're assuming you're interested in the first class (Approved)
-    shap_values_for_input = shap_values[1]  # If your model outputs two classes, use [0] or [1]
+    # Check the shape of the shap_values array to ensure it has the expected number of classes
+    if len(shap_values) > 1:
+        shap_values_for_input = shap_values[1]  # Use the SHAP values for the 'Approved' class
+    else:
+        shap_values_for_input = shap_values[0]  # Use the SHAP values for the only class available
 
     feature_names = input_data.columns
     explanation_text = f"**Why your loan is {final_result}:**\n\n"
@@ -133,6 +138,8 @@ def explain_prediction(input_data, final_result):
     plt.tight_layout()
 
     return explanation_text, plt
+
+
 
 # Main Streamlit app
 def main():
