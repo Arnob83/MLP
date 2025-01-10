@@ -96,13 +96,14 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-# Wrapper for MLPClassifier to make it SHAP-compatible
-class MLPClassifierWrapper:
-    def __init__(self, model):
-        self.model = model
+# SHAP explanation function
+def explain_with_shap(input_data):
+    # Create a SHAP explainer
+    explainer = shap.KernelExplainer(classifier.predict_proba, input_data)
+    shap_values = explainer.shap_values(input_data)
 
-    def predict(self, X):
-        return self.model.predict_proba(X)
+    # Plot the SHAP values
+    shap.summary_plot(shap_values, input_data)
 
 # Main Streamlit app
 def main():
@@ -171,18 +172,9 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # Feature Importance
-        st.subheader("Feature Importance")
-        
-        # Use the wrapper to make MLPClassifier SHAP-compatible
-        model_wrapper = MLPClassifierWrapper(classifier)
-        explainer = shap.Explainer(model_wrapper.predict, input_data)
-        shap_values = explainer(input_data)
-
-        # Generate a bar plot for feature importance
-        st.set_option('deprecation.showPyplotGlobalUse', False)  # Suppress Streamlit warnings
-        shap.summary_plot(shap_values.values, input_data, plot_type="bar", show=False)
-        st.pyplot()
+        # SHAP explanation and plot
+        st.subheader("Feature Importance (SHAP Bar Plot)")
+        explain_with_shap(input_data)
 
     # Download database button
     if st.button("Download Database"):
@@ -192,6 +184,7 @@ def main():
                     label="Download SQLite Database",
                     data=f,
                     file_name="loan_data.db",
+
                     mime="application/octet-stream"
                 )
         else:
