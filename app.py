@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import os
+import numpy as np
+from sklearn.inspection import permutation_importance
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
@@ -101,6 +103,22 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
+# Feature Importance Function
+def plot_feature_importance(input_data):
+    # Calculate permutation importance
+    result = permutation_importance(classifier, input_data, np.array([1 if x == 'Approved' else 0 for x in input_data['result']]), n_repeats=10, random_state=42)
+    
+    # Extract the feature importances
+    importance = result.importances_mean
+    features = input_data.columns
+
+    # Plot the feature importance
+    plt.figure(figsize=(10, 6))
+    plt.barh(features, importance, color='skyblue')
+    plt.xlabel("Feature Importance")
+    plt.title("Feature Importance Plot")
+    plt.show()
+
 # Main Streamlit app
 def main():
     # Initialize database
@@ -167,6 +185,10 @@ def main():
 
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
+
+        # Show Feature Importance Plot
+        st.subheader("Feature Importance Plot")
+        plot_feature_importance(input_data)
 
     # Download database button
     if st.button("Download Database"):
