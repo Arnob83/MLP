@@ -7,13 +7,13 @@ import requests
 import os
 
 # URLs for the model and scaler files in your GitHub repository
-model_url = "https://raw.githubusercontent.com/Arnob83/LGR/main/Logistic_Regression_model.pkl"
-scaler_url = "https://raw.githubusercontent.com/Arnob83/LGR/main/scaler.pkl"
+model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
+scaler_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/scaler.pkl"
 
 # Download and save model and scaler files locally
-if not os.path.exists("Logistic_Regression_model.pkl"):
+if not os.path.exists("MLP_model.pkl"):
     model_response = requests.get(model_url)
-    with open("Logistic_Regression_model.pkl", "wb") as file:
+    with open("MLP_model.pkl", "wb") as file:
         file.write(model_response.content)
 
 if not os.path.exists("scaler.pkl"):
@@ -22,7 +22,7 @@ if not os.path.exists("scaler.pkl"):
         file.write(scaler_response.content)
 
 # Load the trained model
-with open("Logistic_Regression_model.pkl", "rb") as model_file:
+with open("MLP_model.pkl", "rb") as model_file:
     classifier = pickle.load(model_file)
 
 # Load the Min-Max scaler
