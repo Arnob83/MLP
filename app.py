@@ -1,78 +1,7 @@
-import sqlite3
-import pickle
-import streamlit as st
-import matplotlib.pyplot as plt
-import pandas as pd
-import requests
-import os
 import shap
+import numpy as np
 
-# URLs for the model and scaler files in your GitHub repository
-model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
-scaler_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/scaler.pkl"
-
-# Download and save model and scaler files locally
-if not os.path.exists("MLP_model.pkl"):
-    model_response = requests.get(model_url)
-    with open("MLP_model.pkl", "wb") as file:
-        file.write(model_response.content)
-
-if not os.path.exists("scaler.pkl"):
-    scaler_response = requests.get(scaler_url)
-    with open("scaler.pkl", "wb") as file:
-        file.write(scaler_response.content)
-
-# Load the trained model
-with open("MLP_model.pkl", "rb") as model_file:
-    classifier = pickle.load(model_file)
-
-# Load the Min-Max scaler
-with open("scaler.pkl", "rb") as scaler_file:
-    scaler = pickle.load(scaler_file)
-
-# Initialize SQLite database
-def init_db():
-    conn = sqlite3.connect("loan_data.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS loan_predictions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        gender TEXT,
-        married TEXT,
-        dependents INTEGER,
-        self_employed TEXT,
-        loan_amount REAL,
-        property_area TEXT,
-        credit_history TEXT,
-        education TEXT,
-        applicant_income REAL,
-        coapplicant_income REAL,
-        loan_amount_term REAL,
-        result TEXT
-    )
-    """)
-    conn.commit()
-    conn.close()
-
-# Save prediction data to the database
-def save_to_database(gender, married, dependents, self_employed, loan_amount, property_area, 
-                     credit_history, education, applicant_income, coapplicant_income, 
-                     loan_amount_term, result):
-    conn = sqlite3.connect("loan_data.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-    INSERT INTO loan_predictions (
-        gender, married, dependents, self_employed, loan_amount, property_area, 
-        credit_history, education, applicant_income, coapplicant_income, loan_amount_term, result
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (gender, married, dependents, self_employed, loan_amount, property_area, 
-          credit_history, education, applicant_income, coapplicant_income, 
-          loan_amount_term, result))
-    conn.commit()
-    conn.close()
-
-# Prediction function
+# Modify the prediction function to include SHAP
 @st.cache_data
 def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term):
     # Map user inputs to numeric values
@@ -94,44 +23,15 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     probabilities = classifier.predict_proba(input_data)
     
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
-    return pred_label, input_data, probabilities
 
-# Explanation function
-def explain_prediction(input_data, final_result):
-    # Define a function that will return predictions (probabilities) for SHAP
-    def model_predict(input_data):
-        # Scale the input data as the model expects scaled values
-        columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-        input_data[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
-        return classifier.predict_proba(input_data)
-
-    # Create an explainer object using the model_predict wrapper
-    explainer = shap.KernelExplainer(model_predict, shap.sample(input_data, 100))
-    
-    # Generate SHAP values for the input data
+    # SHAP Explanation
+    explainer = shap.KernelExplainer(classifier.predict_proba, input_data)
     shap_values = explainer.shap_values(input_data)
 
-    # Get SHAP values for the first input instance
-    feature_names = input_data.columns
-    shap_values_for_input = shap_values[0][0]  # SHAP values for the first row
+    # Create a summary plot for SHAP values
+    shap.summary_plot(shap_values[1], input_data, feature_names=input_data.columns)
 
-    explanation_text = f"**Why your loan is {final_result}:**\n\n"
-    for feature, shap_value in zip(feature_names, shap_values_for_input):
-        explanation_text += (
-            f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
-        )
-
-    if final_result == 'Rejected':
-        explanation_text += "\nThe loan was rejected because the negative contributions outweighed the positive ones."
-    else:
-        explanation_text += "\nThe loan was approved because the positive contributions outweighed the negative ones."
-
-    # Generate SHAP summary plot
-    plt.figure(figsize=(8, 5))
-    shap.summary_plot(shap_values, input_data, plot_type="bar", show=False)
-    plt.tight_layout()
-
-    return explanation_text, plt
+    return pred_label, input_data, probabilities, shap_values
 
 # Main Streamlit app
 def main():
@@ -182,7 +82,7 @@ def main():
 
     # Prediction and database saving
     if st.button("Predict"):
-        result, input_data, probabilities = prediction(
+        result, input_data, probabilities, shap_values = prediction(
             Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term
         )
 
@@ -200,9 +100,9 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # Generate and display SHAP explanation
-        explanation_text, shap_plot = explain_prediction(input_data, result)
-        st.markdown(explanation_text)
+        # Show SHAP Summary Plot
+        st.subheader("SHAP Feature Importance")
+        shap_plot = shap.summary_plot(shap_values[1], input_data, feature_names=input_data.columns)
         st.pyplot(shap_plot)
 
     # Download database button
