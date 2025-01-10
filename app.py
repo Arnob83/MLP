@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import os
+import lime
+import lime.lime_tabular
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
@@ -95,7 +97,22 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-# Updated Main Streamlit App
+# Initialize LIME Explainer
+@st.cache_resource
+def get_lime_explainer():
+    # Dummy training data for initializing the explainer (replace this with actual training data)
+    X_train = pd.DataFrame(
+        [[1, 0, 5000, 2000, 360], [0, 1, 6000, 2500, 120]],
+        columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
+    )
+    return lime.lime_tabular.LimeTabularExplainer(
+        X_train.values,
+        feature_names=X_train.columns,
+        class_names=["Rejected", "Approved"],
+        mode="classification"
+    )
+
+# Main Streamlit app
 def main():
     # Initialize database
     init_db()
@@ -162,50 +179,18 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # Prepare data for the bar plot (include all features)
-        features = ["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-        
-        # Original values from user input
-        original_values = [
-            0 if Credit_History == "Unclear Debts" else 1,  # Credit_History
-            0 if Education == "Graduate" else 1,  # Education
-            ApplicantIncome,  # ApplicantIncome
-            CoapplicantIncome,  # CoapplicantIncome
-            Loan_Amount_Term  # Loan_Amount_Term
-        ]
-        
-        # Scaled values
-        scaled_values = input_data.iloc[0].tolist()
+        # LIME Explanation
+        st.subheader("LIME Explanation")
 
-        user_data = {
-            "Feature": features,
-            "Original": original_values,
-            "Scaled": scaled_values
-        }
-        
-        user_df = pd.DataFrame(user_data)
-
-        # Plot the bar chart
-        st.subheader("Input Data Visualization")
-        fig, ax = plt.subplots(figsize=(10, 6))
-        bar_width = 0.35
-        x = range(len(features))
-
-        ax.bar(x, user_df["Original"], bar_width, label="Original")
-        ax.bar(
-            [i + bar_width for i in x],
-            user_df["Scaled"],
-            bar_width,
-            label="Scaled"
+        lime_explainer = get_lime_explainer()
+        exp = lime_explainer.explain_instance(
+            input_data.iloc[0].values,  # The scaled input data
+            classifier.predict_proba,  # The model's prediction function
+            num_features=5  # Number of features to display in the explanation
         )
 
-        ax.set_xlabel("Features")
-        ax.set_ylabel("Values")
-        ax.set_title("Comparison of Original and Scaled Input Data")
-        ax.set_xticks([i + bar_width / 2 for i in x])
-        ax.set_xticklabels(features)
-        ax.legend()
-
+        # Display LIME explanation in Streamlit
+        fig = exp.as_pyplot_figure()
         st.pyplot(fig)
 
     # Download database button
