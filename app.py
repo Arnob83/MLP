@@ -96,6 +96,14 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
+# Wrapper for MLPClassifier to make it SHAP-compatible
+class MLPClassifierWrapper:
+    def __init__(self, model):
+        self.model = model
+
+    def predict(self, X):
+        return self.model.predict_proba(X)
+
 # Main Streamlit app
 def main():
     # Initialize database
@@ -165,7 +173,10 @@ def main():
 
         # Feature Importance
         st.subheader("Feature Importance")
-        explainer = shap.Explainer(classifier, input_data)
+        
+        # Use the wrapper to make MLPClassifier SHAP-compatible
+        model_wrapper = MLPClassifierWrapper(classifier)
+        explainer = shap.Explainer(model_wrapper.predict, input_data)
         shap_values = explainer(input_data)
 
         # Generate a bar plot for feature importance
