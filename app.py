@@ -99,7 +99,6 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
 
 
 
-# SHAP explanation function
 def explain_prediction(input_data, final_result):
     # We need to define a function that works with SHAP's KernelExplainer.
     def model_predict(input_data):
@@ -118,7 +117,9 @@ def explain_prediction(input_data, final_result):
     feature_names = input_data.columns
     explanation_text = f"**Why your loan is {final_result}:**\n\n"
     for feature, shap_value in zip(feature_names, shap_values_for_input):
-        shap_value = shap_value.item() if isinstance(shap_value, np.ndarray) else shap_value
+        # Check if shap_value is an instance of a numpy.ndarray
+        if isinstance(shap_value, np.ndarray):
+            shap_value = shap_value.item()  # Convert to scalar if it's an ndarray
         explanation_text += (
             f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
         )
@@ -130,14 +131,18 @@ def explain_prediction(input_data, final_result):
 
     # Generate the SHAP bar plot
     plt.figure(figsize=(8, 5))
-    plt.barh(feature_names, [shap_value.item() if isinstance(shap_value, np.ndarray) else shap_value for shap_value in shap_values_for_input], 
-             color=["green" if val > 0 else "red" for val in shap_values_for_input])
+    shap_values_for_input_list = [shap_value.item() if isinstance(shap_value, np.ndarray) else shap_value 
+                                  for shap_value in shap_values_for_input]
+    plt.barh(feature_names, shap_values_for_input_list, 
+             color=["green" if val > 0 else "red" for val in shap_values_for_input_list])
     plt.xlabel("SHAP Value (Impact on Prediction)")
     plt.ylabel("Features")
     plt.title("Feature Contributions to Prediction")
     plt.tight_layout()
 
     return explanation_text, plt
+
+
 
 
 
