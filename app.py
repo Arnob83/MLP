@@ -101,8 +101,10 @@ def plot_feature_importance(input_data):
     feature_names = input_data.columns
     feature_values = input_data.values[0]
 
+    colors = ["green" if val >= 0 else "red" for val in feature_values]
+
     fig, ax = plt.subplots()
-    ax.barh(feature_names, feature_values, color="skyblue")
+    ax.barh(feature_names, feature_values, color=colors)
     ax.set_xlabel("Feature Value (Scaled)")
     ax.set_title("Feature Importance for Prediction")
     st.pyplot(fig)
