@@ -26,13 +26,13 @@ with open("MLP_model.pkl", "rb") as model_file:
 with open("scaler.pkl", "rb") as scaler_file:
     scaler = pickle.load(scaler_file)
 
-# Check and print the feature order from the trained model
+# Check the trained model's feature order
 if hasattr(classifier, 'feature_names_in_'):
     trained_feature_order = classifier.feature_names_in_
-    print("MLP Trained model's feature order:")
+    print("Trained model's feature order:")
     print(trained_feature_order)
 else:
-    raise ValueError("The trained model does not store feature names. Ensure the input order matches during prediction.")
+    raise ValueError("The trained model does not store feature names.")
 
 # Initialize SQLite database
 def init_db():
@@ -91,18 +91,17 @@ def prediction(Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, 
 
     # Scale only the specified features
     columns_to_scale = ['ApplicantIncome', 'CoapplicantIncome', 'Loan_Amount_Term']
-    input_data_combined = input_data.copy()  # Copy the dataset
-    input_data_combined[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
+    input_data[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
 
     # Ensure feature order matches the trained model's feature order
-    input_data_combined = input_data_combined[trained_feature_order]
+    input_data = input_data[trained_feature_order]
 
     # Model prediction (0 = Rejected, 1 = Approved)
-    prediction = classifier.predict(input_data_combined)
-    probabilities = classifier.predict_proba(input_data_combined)  # Get prediction probabilities
+    prediction = classifier.predict(input_data)
+    probabilities = classifier.predict_proba(input_data)  # Get prediction probabilities
     
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
-    return pred_label, input_data, input_data_combined, probabilities
+    return pred_label, input_data, probabilities
 
 # Main Streamlit app
 def main():
@@ -127,7 +126,7 @@ def main():
 
     # Prediction and database saving
     if st.button("Predict"):
-        result, input_data, input_data_combined, probabilities = prediction(
+        result, input_data, probabilities = prediction(
             Credit_History,
             Education_1,
             ApplicantIncome,
@@ -147,11 +146,8 @@ def main():
             st.error(f"Your loan is Rejected! (Probability: {probabilities[0][0]:.2f})", icon="❌")
 
         # Show prediction values and scaled values
-        st.subheader("Prediction Value")
+        st.subheader("Input Data (Used for Prediction)")
         st.write(input_data)
-
-        st.subheader("Input Data (Scaled and Combined)")
-        st.write(input_data_combined)
 
 if __name__ == '__main__':
     main()
