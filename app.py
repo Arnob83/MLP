@@ -96,12 +96,14 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-# Function to explain with SHAP
 def explain_with_shap(input_data):
     # Scale the input data using the same scaler
     columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     input_data_scaled = input_data.copy()
     input_data_scaled[columns_to_scale] = scaler.transform(input_data_scaled[columns_to_scale])
+
+    # Ensure the input data has the correct feature names for SHAP
+    input_data_scaled = input_data_scaled[columns_to_scale]  # Use only scaled columns
 
     # Create a callable function for prediction (needed for MLPClassifier)
     def model_predict(data):
@@ -119,6 +121,7 @@ def explain_with_shap(input_data):
 
     # Display SHAP plot in Streamlit
     st.pyplot(fig)
+
 
 # Main Streamlit app
 def main():
