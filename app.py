@@ -162,19 +162,34 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # Prepare data for the bar plot
+        # Prepare data for the bar plot (include all features)
+        features = ["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
+        
+        # Original values from user input
+        original_values = [
+            0 if Credit_History == "Unclear Debts" else 1,  # Credit_History
+            0 if Education == "Graduate" else 1,  # Education
+            ApplicantIncome,  # ApplicantIncome
+            CoapplicantIncome,  # CoapplicantIncome
+            Loan_Amount_Term  # Loan_Amount_Term
+        ]
+        
+        # Scaled values
+        scaled_values = input_data.iloc[0].tolist()
+
         user_data = {
-            "Feature": ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"],
-            "Original": [ApplicantIncome, CoapplicantIncome, Loan_Amount_Term],
-            "Scaled": input_data.iloc[0].tolist()
+            "Feature": features,
+            "Original": original_values,
+            "Scaled": scaled_values
         }
+        
         user_df = pd.DataFrame(user_data)
 
         # Plot the bar chart
         st.subheader("Input Data Visualization")
-        fig, ax = plt.subplots(figsize=(8, 5))
+        fig, ax = plt.subplots(figsize=(10, 6))
         bar_width = 0.35
-        x = range(len(user_data["Feature"]))
+        x = range(len(features))
 
         ax.bar(x, user_df["Original"], bar_width, label="Original")
         ax.bar(
@@ -188,7 +203,7 @@ def main():
         ax.set_ylabel("Values")
         ax.set_title("Comparison of Original and Scaled Input Data")
         ax.set_xticks([i + bar_width / 2 for i in x])
-        ax.set_xticklabels(user_data["Feature"])
+        ax.set_xticklabels(features)
         ax.legend()
 
         st.pyplot(fig)
