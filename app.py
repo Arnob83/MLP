@@ -6,7 +6,7 @@ import pandas as pd
 import requests
 import os
 import shap  # Import SHAP
-import numpy as np
+import numpy as np  # Import numpy for array handling
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
@@ -55,55 +55,32 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-
-
-
-#import numpy as np  # Import numpy
-
-#import numpy as np  # Import numpy for array handling
-
+# Explanation function
 def explain_prediction(input_data, final_result):
-    # Define a model prediction function for SHAP (this function is required)
-    def model_predict(data):
-        return classifier.predict_proba(data)
+    explainer = shap.Explainer(classifier)
+    shap_values = explainer.shap_values(input_data)
+    shap_values_for_input = shap_values[0]  # Assuming we're interested in the first class (Approved)
 
-    # Ensure input_data is in the correct 2D shape for SHAP
-    input_data_for_shap = input_data.values.reshape(1, -1)
-
-    # Initialize SHAP explainer with the model prediction function
-    explainer = shap.Explainer(model_predict, input_data_for_shap)
-
-    # Get the SHAP values for the input data
-    shap_values = explainer(input_data_for_shap)
-    shap_values_for_input = shap_values[0].values  # Accessing the actual SHAP values
-
-    # Get feature names for the explanation
     feature_names = input_data.columns
-
-    # Explanation text for the user
     explanation_text = f"**Why your loan is {final_result}:**\n\n"
     for feature, shap_value in zip(feature_names, shap_values_for_input):
-        # Check if shap_value is a numpy array and convert it to a scalar if needed
-        if isinstance(shap_value, np.ndarray) and shap_value.size == 1:
-            shap_value = shap_value.item()  # Extract the scalar value
-
-        # Handle the case where shap_value might still be an array
-        if isinstance(shap_value, np.ndarray):
-            shap_value = shap_value[0]  # Handle as scalar if possible
-
-        # Now, you can safely compare the shap_value
+        # If shap_value is an array, convert it to a scalar using .item()
+        shap_value = shap_value.item() if isinstance(shap_value, np.ndarray) else shap_value
+        
+        # Check if the shap_value is positive or negative
         explanation_text += (
             f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
         )
-
+    
     if final_result == 'Rejected':
         explanation_text += "\nThe loan was rejected because the negative contributions outweighed the positive ones."
     else:
         explanation_text += "\nThe loan was approved because the positive contributions outweighed the negative ones."
 
-    # Plotting the SHAP bar plot for feature contributions
+    # Generate the SHAP bar plot
     plt.figure(figsize=(8, 5))
-    plt.barh(feature_names, shap_values_for_input, color=["green" if val > 0 else "red" for val in shap_values_for_input])
+    plt.barh(feature_names, [shap_value.item() if isinstance(shap_value, np.ndarray) else shap_value for shap_value in shap_values_for_input], 
+             color=["green" if val > 0 else "red" for val in shap_values_for_input])
     plt.xlabel("SHAP Value (Impact on Prediction)")
     plt.ylabel("Features")
     plt.title("Feature Contributions to Prediction")
@@ -132,7 +109,7 @@ def main():
             Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term
         )
 
-        # Display the prediction result
+        # Display the prediction
         if result == "Approved":
             st.success(f"Your loan is Approved! (Probability: {probabilities[0][1]:.2f})")
         else:
@@ -141,11 +118,10 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # Show SHAP explanation and plot for feature importance
+        # Show SHAP explanation and bar plot
         explanation_text, shap_plot = explain_prediction(input_data, result)
-        st.subheader("Explanation of Prediction")
-        st.write(explanation_text)
-        st.pyplot(shap_plot)  # Display the SHAP bar plot
+        st.text_area("Explanation", explanation_text)
+        st.pyplot(shap_plot)
 
 if __name__ == '__main__':
     main()
