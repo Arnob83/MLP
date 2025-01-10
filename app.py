@@ -6,7 +6,7 @@ import pandas as pd
 import requests
 import os
 import lime
-import lime.lime_tabular
+from lime.lime_tabular import LimeTabularExplainer
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
@@ -88,30 +88,33 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
 
     # Scale specified features using Min-Max scaler
     columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-    input_data_scaled = input_data.copy()
-    input_data_scaled[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
+    input_data[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
 
     # Model prediction
-    prediction = classifier.predict(input_data_scaled)
-    probabilities = classifier.predict_proba(input_data_scaled)
+    prediction = classifier.predict(input_data)
+    probabilities = classifier.predict_proba(input_data)
     
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
-    return pred_label, input_data_scaled, input_data, probabilities
+    return pred_label, input_data, probabilities
 
-# Initialize LIME Explainer
-@st.cache_resource
-def get_lime_explainer():
-    # Dummy training data for initializing the explainer (replace this with actual training data)
-    X_train = pd.DataFrame(
-        [[1, 0, 5000, 2000, 360], [0, 1, 6000, 2500, 120]],
-        columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-    )
-    return lime.lime_tabular.LimeTabularExplainer(
-        X_train.values,
-        feature_names=X_train.columns,
-        class_names=["Rejected", "Approved"],
+# Generate LIME explanations and plot feature importance
+def lime_explanation(input_data, classifier, feature_names, class_names):
+    explainer = LimeTabularExplainer(
+        training_data=scaler.transform(input_data),  # Use scaled data for LIME
+        feature_names=feature_names,
+        class_names=class_names,
         mode="classification"
     )
+    explanation = explainer.explain_instance(
+        input_data.values[0],  # Single instance for explanation
+        classifier.predict_proba
+    )
+    return explanation
+
+# Display LIME plot in Streamlit
+def display_lime_plot(explanation):
+    fig = explanation.as_pyplot_figure()
+    st.pyplot(fig)
 
 # Main Streamlit app
 def main():
@@ -162,7 +165,7 @@ def main():
 
     # Prediction and database saving
     if st.button("Predict"):
-        result, input_data_scaled, input_data_unscaled, probabilities = prediction(
+        result, input_data, probabilities = prediction(
             Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term
         )
 
@@ -178,29 +181,14 @@ def main():
             st.error(f"Your loan is Rejected! (Probability: {probabilities[0][0]:.2f})")
 
         st.subheader("Input Data (Scaled)")
-        st.write(input_data_scaled)
+        st.write(input_data)
 
-        # LIME Explanation
-        st.subheader("LIME Explanation: Scaled & Unscaled Combined")
-
-        lime_explainer = get_lime_explainer()
-        exp = lime_explainer.explain_instance(
-            input_data_scaled.iloc[0].values,  # Scaled data for explanation
-            classifier.predict_proba,          # Prediction function
-            num_features=5                     # Number of features to display
-        )
-
-        # Display the explanation
-        fig = exp.as_pyplot_figure()
-        plt.title("LIME Explanation with Scaled Data")
-        st.pyplot(fig)
-
-        # Annotate with Unscaled Values
-        st.write("**Feature Contributions (with Unscaled Values):**")
-        feature_weights = exp.as_list()
-        for feature, weight in feature_weights:
-            unscaled_value = input_data_unscaled.loc[0, feature.split()[0]]
-            st.write(f"{feature}: {weight:.4f} (Unscaled Value: {unscaled_value})")
+        # LIME explanation
+        st.subheader("Feature Importance via LIME")
+        feature_names = ["Credit_History", "Education", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
+        class_names = ["Rejected", "Approved"]
+        explanation = lime_explanation(input_data, classifier, feature_names, class_names)
+        display_lime_plot(explanation)
 
     # Download database button
     if st.button("Download Database"):
