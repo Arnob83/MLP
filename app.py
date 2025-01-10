@@ -83,10 +83,16 @@ def prediction(Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, 
         columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     )
 
-    # Scale only specific features
+    # Preserve feature order to match the training data
+    feature_order = ["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
+
+    # Scale only the specified features
     columns_to_scale = ['ApplicantIncome', 'CoapplicantIncome', 'Loan_Amount_Term']
     input_data_scaled = input_data.copy()
     input_data_scaled[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
+
+    # Ensure the final DataFrame follows the same order as the training features
+    input_data_scaled = input_data_scaled[feature_order]
 
     # Model prediction (0 = Rejected, 1 = Approved)
     prediction = classifier.predict(input_data_scaled)
