@@ -97,21 +97,29 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-# Generate LIME explanations and plot feature importance
+# Function to generate LIME explanations and plot feature importance
 def lime_explanation(input_data, classifier, feature_names, class_names):
+    # Create training data for the explainer
+    training_data = pd.DataFrame(
+        [
+            [1, 0, 5000, 1500, 360],  # Example representative data
+            [0, 1, 6000, 2000, 180],
+        ],
+        columns=feature_names,
+    )
     columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-    scaled_input_data = input_data.copy()
-    scaled_input_data[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
+    training_data[columns_to_scale] = scaler.transform(training_data[columns_to_scale])
 
     explainer = LimeTabularExplainer(
-        training_data=scaler.transform(pd.DataFrame([[5000, 1500, 360], [6000, 2000, 180]])),
+        training_data=training_data.values,
         feature_names=feature_names,
         class_names=class_names,
-        mode="classification"
+        mode="classification",
     )
+
     explanation = explainer.explain_instance(
-        scaled_input_data.values[0],  # Single instance for explanation
-        classifier.predict_proba
+        input_data.values[0],  # Single instance for explanation
+        classifier.predict_proba,
     )
     return explanation
 
@@ -151,7 +159,7 @@ def main():
         </div>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
     # User inputs
@@ -174,9 +182,20 @@ def main():
         )
 
         # Save data to database
-        save_to_database(Gender, Married, Dependents, Self_Employed, Loan_Amount, Property_Area, 
-                         Credit_History, Education, ApplicantIncome, CoapplicantIncome, 
-                         Loan_Amount_Term, result)
+        save_to_database(
+            Gender,
+            Married,
+            Dependents,
+            Self_Employed,
+            Loan_Amount,
+            Property_Area,
+            Credit_History,
+            Education,
+            ApplicantIncome,
+            CoapplicantIncome,
+            Loan_Amount_Term,
+            result,
+        )
 
         # Display the prediction
         if result == "Approved":
@@ -189,7 +208,7 @@ def main():
 
         # LIME explanation
         st.subheader("Feature Importance via LIME")
-        feature_names = ["Credit_History", "Education", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
+        feature_names = ["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
         class_names = ["Rejected", "Approved"]
         explanation = lime_explanation(input_data, classifier, feature_names, class_names)
         display_lime_plot(explanation)
@@ -202,10 +221,10 @@ def main():
                     label="Download SQLite Database",
                     data=f,
                     file_name="loan_data.db",
-                    mime="application/octet-stream"
+                    mime="application/octet-stream",
                 )
         else:
             st.error("Database file not found.")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
