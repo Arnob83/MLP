@@ -104,7 +104,7 @@ def lime_explanation(input_data, classifier, feature_names, class_names):
     scaled_input_data[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
 
     explainer = LimeTabularExplainer(
-        training_data=scaled_input_data.values,  # Use scaled data for LIME
+        training_data=scaler.transform(pd.DataFrame([[5000, 1500, 360], [6000, 2000, 180]])),
         feature_names=feature_names,
         class_names=class_names,
         mode="classification"
