@@ -1,11 +1,10 @@
 import sqlite3
 import pickle
 import streamlit as st
+import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import os
-import numpy as np
-from sklearn.inspection import permutation_importance
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
@@ -79,19 +78,13 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     Education = 0 if Education == "Graduate" else 1
     Credit_History = 0 if Credit_History == "Unclear Debts" else 1
 
-    # Create the input data frame
+    # Create input data for the model
     input_data = pd.DataFrame(
         [[Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term]],
         columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     )
 
-    # Identify the order by looking at the trained model's expected feature order
-    model_columns = input_data.columns.tolist()  # Initialize model columns dynamically based on input data order
-
-    # Reorder input data to match model's expected feature order (this is a fallback method)
-    input_data = input_data[model_columns]
-
-    # Apply scaling to the appropriate columns (assuming scaling should happen on income-related features)
+    # Scale specified features using Min-Max scaler
     columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     input_data[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
 
@@ -102,23 +95,7 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-# Feature Importance Function (without plotting)
-def calculate_feature_importance(input_data, prediction_result):
-    # Convert prediction_result into a binary format (1 for Approved, 0 for Rejected)
-    result_array = np.array([1 if prediction_result == 'Approved' else 0])
-
-    # Calculate permutation importance
-    result = permutation_importance(classifier, input_data, result_array, n_repeats=10, random_state=42)
-    
-    # Extract the feature importances
-    importance = result.importances_mean
-    features = input_data.columns
-
-    # Return the feature importance values instead of plotting
-    feature_importance = dict(zip(features, importance))
-    return feature_importance
-
-# Main Streamlit app
+# Updated Main Streamlit App
 def main():
     # Initialize database
     init_db()
@@ -185,10 +162,36 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # Show Feature Importance values (without graph)
-        st.subheader("Feature Importance")
-        feature_importance = calculate_feature_importance(input_data, result)
-        st.write(feature_importance)
+        # Prepare data for the bar plot
+        user_data = {
+            "Feature": ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"],
+            "Original": [ApplicantIncome, CoapplicantIncome, Loan_Amount_Term],
+            "Scaled": input_data.iloc[0].tolist()
+        }
+        user_df = pd.DataFrame(user_data)
+
+        # Plot the bar chart
+        st.subheader("Input Data Visualization")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        bar_width = 0.35
+        x = range(len(user_data["Feature"]))
+
+        ax.bar(x, user_df["Original"], bar_width, label="Original")
+        ax.bar(
+            [i + bar_width for i in x],
+            user_df["Scaled"],
+            bar_width,
+            label="Scaled"
+        )
+
+        ax.set_xlabel("Features")
+        ax.set_ylabel("Values")
+        ax.set_title("Comparison of Original and Scaled Input Data")
+        ax.set_xticks([i + bar_width / 2 for i in x])
+        ax.set_xticklabels(user_data["Feature"])
+        ax.legend()
+
+        st.pyplot(fig)
 
     # Download database button
     if st.button("Download Database"):
