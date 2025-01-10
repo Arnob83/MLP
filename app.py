@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import os
-import lime
-from lime.lime_tabular import LimeTabularExplainer
+import numpy as np
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
@@ -97,37 +96,15 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-# Function to generate LIME explanations and plot feature importance
-def lime_explanation(input_data, classifier, feature_names, class_names, predicted_class):
-    # Create training data for the explainer
-    training_data = pd.DataFrame(
-        [
-            [1, 0, 5000, 1500, 360],  # Example representative data
-            [0, 1, 6000, 2000, 180],
-        ],
-        columns=feature_names,
-    )
-    columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-    training_data[columns_to_scale] = scaler.transform(training_data[columns_to_scale])
+# Plot feature importance
+def plot_feature_importance(input_data):
+    feature_names = input_data.columns
+    feature_values = input_data.values[0]
 
-    explainer = LimeTabularExplainer(
-        training_data=training_data.values,
-        feature_names=feature_names,
-        class_names=class_names,
-        mode="classification",
-    )
-
-    # Generate explanation
-    explanation = explainer.explain_instance(
-        input_data.values[0],  # Single instance for explanation
-        classifier.predict_proba,
-    )
-
-   
-
-# Display LIME plot in Streamlit
-def display_lime_plot(explanation):
-    fig = explanation.as_pyplot_figure()
+    fig, ax = plt.subplots()
+    ax.barh(feature_names, feature_values, color="skyblue")
+    ax.set_xlabel("Feature Value (Scaled)")
+    ax.set_title("Feature Importance for Prediction")
     st.pyplot(fig)
 
 # Main Streamlit app
@@ -161,7 +138,7 @@ def main():
         </div>
         </div>
         """,
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
 
     # User inputs
@@ -183,24 +160,10 @@ def main():
             Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term
         )
 
-        # Determine the predicted class (0 = Rejected, 1 = Approved)
-        predicted_class = 1 if result == "Approved" else 0
-
         # Save data to database
-        save_to_database(
-            Gender,
-            Married,
-            Dependents,
-            Self_Employed,
-            Loan_Amount,
-            Property_Area,
-            Credit_History,
-            Education,
-            ApplicantIncome,
-            CoapplicantIncome,
-            Loan_Amount_Term,
-            result,
-        )
+        save_to_database(Gender, Married, Dependents, Self_Employed, Loan_Amount, Property_Area, 
+                         Credit_History, Education, ApplicantIncome, CoapplicantIncome, 
+                         Loan_Amount_Term, result)
 
         # Display the prediction
         if result == "Approved":
@@ -211,17 +174,9 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # LIME explanation
-        st.subheader(f"Feature Importance for Class: {result}")
-        feature_names = ["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-        class_names = ["Rejected", "Approved"]
-
-        explanation, updated_class = lime_explanation(input_data, classifier, feature_names, class_names, predicted_class)
-        if explanation:
-            st.write(f"Explanation generated for class: {class_names[updated_class]}")
-            display_lime_plot(explanation)
-        else:
-            st.error("Unable to generate LIME explanation for the predicted class.")
+        # Display feature importance bar plot
+        st.subheader("Feature Importance")
+        plot_feature_importance(input_data)
 
     # Download database button
     if st.button("Download Database"):
@@ -231,10 +186,10 @@ def main():
                     label="Download SQLite Database",
                     data=f,
                     file_name="loan_data.db",
-                    mime="application/octet-stream",
+                    mime="application/octet-stream"
                 )
         else:
             st.error("Database file not found.")
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
