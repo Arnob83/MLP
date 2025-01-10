@@ -97,7 +97,6 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-# Function to generate LIME explanations and plot feature importance
 def lime_explanation(input_data, classifier, feature_names, class_names, predicted_class):
     # Create training data for the explainer
     training_data = pd.DataFrame(
@@ -117,11 +116,16 @@ def lime_explanation(input_data, classifier, feature_names, class_names, predict
         mode="classification",
     )
 
-    explanation = explainer.explain_instance(
-        input_data.values[0],  # Single instance for explanation
-        classifier.predict_proba,
-        labels=[predicted_class],  # Specify the predicted class to explain
-    )
+    # Check if the predicted class is in the model's output
+    try:
+        explanation = explainer.explain_instance(
+            input_data.values[0],  # Single instance for explanation
+            classifier.predict_proba,
+            labels=[predicted_class],  # Specify the predicted class to explain
+        )
+    except KeyError as e:
+        st.error(f"LIME explanation failed: {e}")
+        return None
     return explanation
 
 # Display LIME plot in Streamlit
@@ -210,12 +214,17 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # LIME explanation
-        st.subheader(f"Feature Importance for Class: {result}")
-        feature_names = ["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-        class_names = ["Rejected", "Approved"]
-        explanation = lime_explanation(input_data, classifier, feature_names, class_names, predicted_class)
-        display_lime_plot(explanation)
+       # LIME explanation
+st.subheader(f"Feature Importance for Class: {result}")
+feature_names = ["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
+class_names = ["Rejected", "Approved"]
+
+explanation = lime_explanation(input_data, classifier, feature_names, class_names, predicted_class)
+if explanation:
+    display_lime_plot(explanation)
+else:
+    st.error("Unable to generate LIME explanation for the predicted class.")
+
 
     # Download database button
     if st.button("Download Database"):
