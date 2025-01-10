@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import os
-import numpy as np
+import shap
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
@@ -96,18 +96,18 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-# Plot feature importance
-def plot_feature_importance(input_data):
-    feature_names = input_data.columns
-    feature_values = input_data.values[0]
+# SHAP explanation function
+def explain_with_shap(input_data):
+    # Use KernelExplainer for MLP
+    explainer = shap.KernelExplainer(classifier.predict_proba, input_data)
 
-    colors = ["green" if val >= 0 else "red" for val in feature_values]
+    # Calculate SHAP values for the input instance
+    shap_values = explainer.shap_values(input_data)
 
-    fig, ax = plt.subplots()
-    ax.barh(feature_names, feature_values, color=colors)
-    ax.set_xlabel("Feature Value (Scaled)")
-    ax.set_title("Feature Importance for Prediction")
-    st.pyplot(fig)
+    # Generate SHAP bar plot
+    shap.summary_plot(shap_values, input_data, plot_type="bar", show=False)
+    plt.tight_layout()
+    return plt
 
 # Main Streamlit app
 def main():
@@ -176,9 +176,10 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # Display feature importance bar plot
-        st.subheader("Feature Importance")
-        plot_feature_importance(input_data)
+        # SHAP Explanation
+        st.subheader("Feature Importance using SHAP")
+        shap_plot = explain_with_shap(input_data)
+        st.pyplot(shap_plot)
 
     # Download database button
     if st.button("Download Database"):
