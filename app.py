@@ -98,27 +98,32 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
 
 # Explanation function
 def explain_prediction(input_data, final_result):
-    explainer = shap.Explainer(classifier)
-    shap_values = explainer.shap_values(input_data)
-    shap_values_for_input = shap_values[0]
+    # Convert input data to a NumPy array for KernelExplainer
+    input_data_array = input_data.to_numpy()
+
+    # Use KernelExplainer for MLPClassifier
+    explainer = shap.KernelExplainer(classifier.predict_proba, shap.sample(input_data, 100))
+    shap_values = explainer.shap_values(input_data_array)
 
     feature_names = input_data.columns
+    shap_values_for_input = shap_values[0][0]  # Get SHAP values for the first input instance
+
     explanation_text = f"**Why your loan is {final_result}:**\n\n"
     for feature, shap_value in zip(feature_names, shap_values_for_input):
         explanation_text += (
             f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
         )
+
     if final_result == 'Rejected':
         explanation_text += "\nThe loan was rejected because the negative contributions outweighed the positive ones."
     else:
         explanation_text += "\nThe loan was approved because the positive contributions outweighed the negative ones."
 
+    # Generate SHAP summary plot
     plt.figure(figsize=(8, 5))
-    plt.barh(feature_names, shap_values_for_input, color=["green" if val > 0 else "red" for val in shap_values_for_input])
-    plt.xlabel("SHAP Value (Impact on Prediction)")
-    plt.ylabel("Features")
-    plt.title("Feature Contributions to Prediction")
+    shap.summary_plot(shap_values, input_data, plot_type="bar", show=False)
     plt.tight_layout()
+
     return explanation_text, plt
 
 # Main Streamlit app
