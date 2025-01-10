@@ -104,9 +104,12 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     return pred_label, input_data, probabilities
 
 # Feature Importance Function
-def plot_feature_importance(input_data):
+def plot_feature_importance(input_data, prediction_result):
+    # Convert prediction_result into a binary format (1 for Approved, 0 for Rejected)
+    result_array = np.array([1 if prediction_result == 'Approved' else 0])
+
     # Calculate permutation importance
-    result = permutation_importance(classifier, input_data, np.array([1 if x == 'Approved' else 0 for x in input_data['result']]), n_repeats=10, random_state=42)
+    result = permutation_importance(classifier, input_data, result_array, n_repeats=10, random_state=42)
     
     # Extract the feature importances
     importance = result.importances_mean
@@ -188,7 +191,7 @@ def main():
 
         # Show Feature Importance Plot
         st.subheader("Feature Importance Plot")
-        plot_feature_importance(input_data)
+        plot_feature_importance(input_data, result)
 
     # Download database button
     if st.button("Download Database"):
