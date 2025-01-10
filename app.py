@@ -99,9 +99,16 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
 
 # SHAP explanation function
 def explain_prediction(input_data, final_result):
-    explainer = shap.Explainer(classifier)
+    # We need to define a function that works with SHAP's KernelExplainer.
+    def model_predict(input_data):
+        return classifier.predict_proba(input_data)
+
+    # Use KernelExplainer with the model's prediction function
+    explainer = shap.KernelExplainer(model_predict, input_data)
     shap_values = explainer.shap_values(input_data)
-    shap_values_for_input = shap_values[0]  # Assuming we're interested in the first class (Approved)
+
+    # We're assuming you're interested in the first class (Approved)
+    shap_values_for_input = shap_values[1]  # If your model outputs two classes, use [0] or [1]
 
     feature_names = input_data.columns
     explanation_text = f"**Why your loan is {final_result}:**\n\n"
@@ -194,9 +201,9 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # Show SHAP explanation and bar plot
+        # Show SHAP explanation
         explanation_text, shap_plot = explain_prediction(input_data, result)
-        st.text_area("Explanation", explanation_text)
+        st.markdown(explanation_text)
         st.pyplot(shap_plot)
 
     # Download database button
@@ -207,6 +214,7 @@ def main():
                     label="Download SQLite Database",
                     data=f,
                     file_name="loan_data.db",
+
                     mime="application/octet-stream"
                 )
         else:
