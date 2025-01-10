@@ -1,7 +1,6 @@
 import sqlite3
 import pickle
 import streamlit as st
-import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import os
@@ -103,8 +102,8 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-# Feature Importance Function
-def plot_feature_importance(input_data, prediction_result):
+# Feature Importance Function (without plotting)
+def calculate_feature_importance(input_data, prediction_result):
     # Convert prediction_result into a binary format (1 for Approved, 0 for Rejected)
     result_array = np.array([1 if prediction_result == 'Approved' else 0])
 
@@ -115,12 +114,9 @@ def plot_feature_importance(input_data, prediction_result):
     importance = result.importances_mean
     features = input_data.columns
 
-    # Plot the feature importance
-    plt.figure(figsize=(10, 6))
-    plt.barh(features, importance, color='skyblue')
-    plt.xlabel("Feature Importance")
-    plt.title("Feature Importance Plot")
-    plt.show()
+    # Return the feature importance values instead of plotting
+    feature_importance = dict(zip(features, importance))
+    return feature_importance
 
 # Main Streamlit app
 def main():
@@ -189,9 +185,10 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # Show Feature Importance Plot
-        st.subheader("Feature Importance Plot")
-        plot_feature_importance(input_data, result)
+        # Show Feature Importance values (without graph)
+        st.subheader("Feature Importance")
+        feature_importance = calculate_feature_importance(input_data, result)
+        st.write(feature_importance)
 
     # Download database button
     if st.button("Download Database"):
