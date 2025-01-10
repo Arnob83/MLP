@@ -60,6 +60,8 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
 
 #import numpy as np  # Import numpy
 
+#import numpy as np  # Import numpy for array handling
+
 def explain_prediction(input_data, final_result):
     # Define a model prediction function for SHAP (this function is required)
     def model_predict(data):
@@ -81,10 +83,15 @@ def explain_prediction(input_data, final_result):
     # Explanation text for the user
     explanation_text = f"**Why your loan is {final_result}:**\n\n"
     for feature, shap_value in zip(feature_names, shap_values_for_input):
-        # Handle the case where shap_value is a scalar or an array
+        # Check if shap_value is a numpy array and convert it to a scalar if needed
         if isinstance(shap_value, np.ndarray) and shap_value.size == 1:
             shap_value = shap_value.item()  # Extract the scalar value
-        
+
+        # Handle the case where shap_value might still be an array
+        if isinstance(shap_value, np.ndarray):
+            shap_value = shap_value[0]  # Handle as scalar if possible
+
+        # Now, you can safely compare the shap_value
         explanation_text += (
             f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
         )
@@ -103,9 +110,6 @@ def explain_prediction(input_data, final_result):
     plt.tight_layout()
 
     return explanation_text, plt
-
-
-
 
 # Main Streamlit app
 def main():
