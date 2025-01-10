@@ -99,14 +99,18 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
 
 # Generate LIME explanations and plot feature importance
 def lime_explanation(input_data, classifier, feature_names, class_names):
+    columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
+    scaled_input_data = input_data.copy()
+    scaled_input_data[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
+
     explainer = LimeTabularExplainer(
-        training_data=scaler.transform(input_data),  # Use scaled data for LIME
+        training_data=scaled_input_data.values,  # Use scaled data for LIME
         feature_names=feature_names,
         class_names=class_names,
         mode="classification"
     )
     explanation = explainer.explain_instance(
-        input_data.values[0],  # Single instance for explanation
+        scaled_input_data.values[0],  # Single instance for explanation
         classifier.predict_proba
     )
     return explanation
