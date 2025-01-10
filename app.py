@@ -58,6 +58,8 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
 
 
 
+#import numpy as np  # Import numpy
+
 def explain_prediction(input_data, final_result):
     # Define a model prediction function for SHAP (this function is required)
     def model_predict(data):
@@ -79,8 +81,9 @@ def explain_prediction(input_data, final_result):
     # Explanation text for the user
     explanation_text = f"**Why your loan is {final_result}:**\n\n"
     for feature, shap_value in zip(feature_names, shap_values_for_input):
-        # Ensure we handle the scalar value of shap_value
-        shap_value = shap_value.item() if isinstance(shap_value, np.ndarray) else shap_value
+        # Handle the case where shap_value is a scalar or an array
+        if isinstance(shap_value, np.ndarray) and shap_value.size == 1:
+            shap_value = shap_value.item()  # Extract the scalar value
         
         explanation_text += (
             f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
@@ -100,6 +103,7 @@ def explain_prediction(input_data, final_result):
     plt.tight_layout()
 
     return explanation_text, plt
+
 
 
 
