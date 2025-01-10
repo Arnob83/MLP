@@ -96,14 +96,20 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-# SHAP explanation function
 def explain_with_shap(input_data):
     # Create a SHAP explainer
-    explainer = shap.KernelExplainer(classifier.predict_proba, input_data)
-    shap_values = explainer.shap_values(input_data)
+    explainer = shap.Explainer(classifier, input_data)
 
-    # Plot the SHAP values
-    shap.summary_plot(shap_values, input_data)
+    # Calculate SHAP values
+    shap_values = explainer(input_data)
+
+    # Create a summary plot with SHAP
+    fig, ax = plt.subplots()
+    shap.summary_plot(shap_values, input_data, plot_type="bar", show=False)  # 'show=False' prevents automatic rendering
+
+    # Display SHAP plot in Streamlit
+    st.pyplot(fig)
+
 
 # Main Streamlit app
 def main():
