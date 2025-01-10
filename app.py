@@ -1,7 +1,79 @@
+import sqlite3
+import pickle
+import streamlit as st  # Ensure this line is included
+import matplotlib.pyplot as plt
+import pandas as pd
+import requests
+import os
 import shap
 import numpy as np
 
-# Modify the prediction function to include SHAP
+# URLs for the model and scaler files in your GitHub repository
+model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
+scaler_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/scaler.pkl"
+
+# Download and save model and scaler files locally
+if not os.path.exists("MLP_model.pkl"):
+    model_response = requests.get(model_url)
+    with open("MLP_model.pkl", "wb") as file:
+        file.write(model_response.content)
+
+if not os.path.exists("scaler.pkl"):
+    scaler_response = requests.get(scaler_url)
+    with open("scaler.pkl", "wb") as file:
+        file.write(scaler_response.content)
+
+# Load the trained model
+with open("MLP_model.pkl", "rb") as model_file:
+    classifier = pickle.load(model_file)
+
+# Load the Min-Max scaler
+with open("scaler.pkl", "rb") as scaler_file:
+    scaler = pickle.load(scaler_file)
+
+# Initialize SQLite database
+def init_db():
+    conn = sqlite3.connect("loan_data.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS loan_predictions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        gender TEXT,
+        married TEXT,
+        dependents INTEGER,
+        self_employed TEXT,
+        loan_amount REAL,
+        property_area TEXT,
+        credit_history TEXT,
+        education TEXT,
+        applicant_income REAL,
+        coapplicant_income REAL,
+        loan_amount_term REAL,
+        result TEXT
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+# Save prediction data to the database
+def save_to_database(gender, married, dependents, self_employed, loan_amount, property_area, 
+                     credit_history, education, applicant_income, coapplicant_income, 
+                     loan_amount_term, result):
+    conn = sqlite3.connect("loan_data.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO loan_predictions (
+        gender, married, dependents, self_employed, loan_amount, property_area, 
+        credit_history, education, applicant_income, coapplicant_income, loan_amount_term, result
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (gender, married, dependents, self_employed, loan_amount, property_area, 
+          credit_history, education, applicant_income, coapplicant_income, 
+          loan_amount_term, result))
+    conn.commit()
+    conn.close()
+
+# Prediction function
 @st.cache_data
 def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term):
     # Map user inputs to numeric values
@@ -102,8 +174,8 @@ def main():
 
         # Show SHAP Summary Plot
         st.subheader("SHAP Feature Importance")
-        shap_plot = shap.summary_plot(shap_values[1], input_data, feature_names=input_data.columns)
-        st.pyplot(shap_plot)
+        shap.summary_plot(shap_values[1], input_data, feature_names=input_data.columns)
+        st.pyplot(plt)
 
     # Download database button
     if st.button("Download Database"):
