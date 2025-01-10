@@ -96,23 +96,26 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-import shap
-import matplotlib.pyplot as plt
-
+# Function to explain with SHAP
 def explain_with_shap(input_data):
+    # Scale the input data using the same scaler
+    columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
+    input_data_scaled = input_data.copy()
+    input_data_scaled[columns_to_scale] = scaler.transform(input_data_scaled[columns_to_scale])
+
     # Create a callable function for prediction (needed for MLPClassifier)
     def model_predict(data):
         return classifier.predict_proba(data)
 
     # Create a SHAP explainer using the model's predict function
-    explainer = shap.Explainer(model_predict, input_data)
+    explainer = shap.Explainer(model_predict, input_data_scaled)
 
     # Calculate SHAP values
-    shap_values = explainer(input_data)
+    shap_values = explainer(input_data_scaled)
 
     # Create a summary plot with SHAP
     fig, ax = plt.subplots()
-    shap.summary_plot(shap_values, input_data, plot_type="bar", show=False)  # 'show=False' prevents automatic rendering
+    shap.summary_plot(shap_values, input_data_scaled, plot_type="bar", show=False)  # 'show=False' prevents automatic rendering
 
     # Display SHAP plot in Streamlit
     st.pyplot(fig)
@@ -202,5 +205,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-                         
