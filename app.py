@@ -26,6 +26,14 @@ with open("MLP_model.pkl", "rb") as model_file:
 with open("scaler.pkl", "rb") as scaler_file:
     scaler = pickle.load(scaler_file)
 
+# Check and print the feature order from the trained model
+if hasattr(classifier, 'feature_names_in_'):
+    trained_feature_order = classifier.feature_names_in_
+    print("MLP Trained model's feature order:")
+    print(trained_feature_order)
+else:
+    raise ValueError("The trained model does not store feature names. Ensure the input order matches during prediction.")
+
 # Initialize SQLite database
 def init_db():
     conn = sqlite3.connect("loan_data.db")
@@ -83,8 +91,11 @@ def prediction(Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, 
 
     # Scale only the specified features
     columns_to_scale = ['ApplicantIncome', 'CoapplicantIncome', 'Loan_Amount_Term']
-    input_data_combined = input_data.copy()
+    input_data_combined = input_data.copy()  # Copy the dataset
     input_data_combined[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
+
+    # Ensure feature order matches the trained model's feature order
+    input_data_combined = input_data_combined[trained_feature_order]
 
     # Model prediction (0 = Rejected, 1 = Approved)
     prediction = classifier.predict(input_data_combined)
