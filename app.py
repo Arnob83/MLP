@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import os
-import shap  # Import SHAP
-import numpy as np  # Import numpy for array handling
+import shap
+import numpy as np
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
@@ -31,6 +31,48 @@ with open("MLP_model.pkl", "rb") as model_file:
 with open("scaler.pkl", "rb") as scaler_file:
     scaler = pickle.load(scaler_file)
 
+# Initialize SQLite database
+def init_db():
+    conn = sqlite3.connect("loan_data.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS loan_predictions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        gender TEXT,
+        married TEXT,
+        dependents INTEGER,
+        self_employed TEXT,
+        loan_amount REAL,
+        property_area TEXT,
+        credit_history TEXT,
+        education TEXT,
+        applicant_income REAL,
+        coapplicant_income REAL,
+        loan_amount_term REAL,
+        result TEXT
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+# Save prediction data to the database
+def save_to_database(gender, married, dependents, self_employed, loan_amount, property_area, 
+                     credit_history, education, applicant_income, coapplicant_income, 
+                     loan_amount_term, result):
+    conn = sqlite3.connect("loan_data.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO loan_predictions (
+        gender, married, dependents, self_employed, loan_amount, property_area, 
+        credit_history, education, applicant_income, coapplicant_income, loan_amount_term, result
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (gender, married, dependents, self_employed, loan_amount, property_area, 
+          credit_history, education, applicant_income, coapplicant_income, 
+          loan_amount_term, result))
+    conn.commit()
+    conn.close()
+
 # Prediction function
 @st.cache_data
 def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term):
@@ -38,7 +80,7 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     Education = 0 if Education == "Graduate" else 1
     Credit_History = 0 if Credit_History == "Unclear Debts" else 1
 
-    # Create input data for the model (Before scaling)
+    # Create input data for the model
     input_data = pd.DataFrame(
         [[Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term]],
         columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
@@ -55,7 +97,7 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-# Explanation function
+# SHAP explanation function
 def explain_prediction(input_data, final_result):
     explainer = shap.Explainer(classifier)
     shap_values = explainer.shap_values(input_data)
@@ -64,10 +106,7 @@ def explain_prediction(input_data, final_result):
     feature_names = input_data.columns
     explanation_text = f"**Why your loan is {final_result}:**\n\n"
     for feature, shap_value in zip(feature_names, shap_values_for_input):
-        # If shap_value is an array, convert it to a scalar using .item()
         shap_value = shap_value.item() if isinstance(shap_value, np.ndarray) else shap_value
-        
-        # Check if the shap_value is positive or negative
         explanation_text += (
             f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
         )
@@ -90,6 +129,38 @@ def explain_prediction(input_data, final_result):
 
 # Main Streamlit app
 def main():
+    # Initialize database
+    init_db()
+
+    # App layout
+    st.markdown(
+        """
+        <style>
+        .main-container {
+            background-color: #f4f6f9;
+            border: 2px solid #e6e8eb;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .header {
+            background-color: #4caf50;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .header h1 {
+            color: white;
+        }
+        </style>
+        <div class="main-container">
+        <div class="header">
+        <h1>Loan Prediction ML App</h1>
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
     # User inputs
     Gender = st.selectbox("Gender", ("Male", "Female"))
     Married = st.selectbox("Married", ("Yes", "No"))
@@ -103,11 +174,16 @@ def main():
     CoapplicantIncome = st.number_input("Co-applicant's Yearly Income", min_value=0.0)
     Loan_Amount_Term = st.number_input("Loan Term (in months)", min_value=0.0)
 
-    # Prediction and SHAP visualization
+    # Prediction and database saving
     if st.button("Predict"):
         result, input_data, probabilities = prediction(
             Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term
         )
+
+        # Save data to database
+        save_to_database(Gender, Married, Dependents, Self_Employed, Loan_Amount, Property_Area, 
+                         Credit_History, Education, ApplicantIncome, CoapplicantIncome, 
+                         Loan_Amount_Term, result)
 
         # Display the prediction
         if result == "Approved":
@@ -122,6 +198,19 @@ def main():
         explanation_text, shap_plot = explain_prediction(input_data, result)
         st.text_area("Explanation", explanation_text)
         st.pyplot(shap_plot)
+
+    # Download database button
+    if st.button("Download Database"):
+        if os.path.exists("loan_data.db"):
+            with open("loan_data.db", "rb") as f:
+                st.download_button(
+                    label="Download SQLite Database",
+                    data=f,
+                    file_name="loan_data.db",
+                    mime="application/octet-stream"
+                )
+        else:
+            st.error("Database file not found.")
 
 if __name__ == '__main__':
     main()
