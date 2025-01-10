@@ -99,7 +99,7 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
 # SHAP explanation function
 def explain_with_shap(input_data):
     # Use KernelExplainer for MLP
-    explainer = shap.KernelExplainer(classifier.predict_proba, input_data)
+    explainer = shap.Explainer(classifier.predict_proba, input_data)
 
     # Calculate SHAP values for the input instance
     shap_values = explainer.shap_values(input_data)
