@@ -54,26 +54,32 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-def explain_with_shap(input_data):
-    # Ensure input_data is in the correct 2D shape (even if it has only one sample)
-    input_data_for_shap = input_data.values.reshape(1, -1)  # Reshape to 2D array if it's a single row
 
-    # Create a model prediction function for SHAP (MLPClassifier)
-    def model_predict(data):
-        return classifier.predict_proba(data)
 
-    # SHAP Explainer requires a properly scaled input, so we'll pass the entire input data after scaling
-    explainer = shap.Explainer(model_predict, input_data_for_shap)  # Using the model's predict function
+# Explanation function
+def explain_prediction(input_data, final_result):
+    explainer = shap.Explainer(classifier)
+    shap_values = explainer.shap_values(input_data)
+    shap_values_for_input = shap_values[0]
 
-    # Calculate SHAP values for the input data
-    shap_values = explainer(input_data_for_shap)
+    feature_names = input_data.columns
+    explanation_text = f"**Why your loan is {final_result}:**\n\n"
+    for feature, shap_value in zip(feature_names, shap_values_for_input):
+        explanation_text += (
+            f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
+        )
+    if final_result == 'Rejected':
+        explanation_text += "\nThe loan was rejected because the negative contributions outweighed the positive ones."
+    else:
+        explanation_text += "\nThe loan was approved because the positive contributions outweighed the negative ones."
 
-    # Create a SHAP bar plot
-    fig, ax = plt.subplots(figsize=(10, 6))
-    shap.summary_plot(shap_values, input_data_for_shap, plot_type="bar", show=False)  # 'show=False' prevents automatic rendering
-
-    # Display SHAP plot in Streamlit
-    st.pyplot(fig)
+    plt.figure(figsize=(8, 5))
+    plt.barh(feature_names, shap_values_for_input, color=["green" if val > 0 else "red" for val in shap_values_for_input])
+    plt.xlabel("SHAP Value (Impact on Prediction)")
+    plt.ylabel("Features")
+    plt.title("Feature Contributions to Prediction")
+    plt.tight_layout()
+    return explanation_text, plt
 
 
 # Main Streamlit app
