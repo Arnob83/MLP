@@ -98,14 +98,14 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
 
 # SHAP explanation function
 def explain_with_shap(input_data):
-    # Use KernelExplainer for MLP
+    # Use SHAP Explainer for MLP
     explainer = shap.Explainer(classifier.predict_proba, input_data)
 
     # Calculate SHAP values for the input instance
-    shap_values = explainer.shap_values(input_data)
+    shap_values = explainer(input_data)  # Direct call returns SHAP values
 
-    # Generate SHAP bar plot
-    shap.summary_plot(shap_values, input_data, plot_type="bar", show=False)
+    # Generate SHAP bar plot for the "Approved" class (class 1)
+    shap.summary_plot(shap_values.values[..., 1], input_data, plot_type="bar", show=False)
     plt.tight_layout()
     return plt
 
