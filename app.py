@@ -132,7 +132,6 @@ def lime_explanation(input_data, classifier, feature_names, class_names, predict
 def display_lime_plot(explanation):
     fig = explanation.as_pyplot_figure()
     st.pyplot(fig)
-
 # Main Streamlit app
 def main():
     # Initialize database
@@ -214,17 +213,16 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-       # LIME explanation
-st.subheader(f"Feature Importance for Class: {result}")
-feature_names = ["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-class_names = ["Rejected", "Approved"]
+        # LIME explanation
+        st.subheader(f"Feature Importance for Class: {result}")
+        feature_names = ["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
+        class_names = ["Rejected", "Approved"]
 
-explanation = lime_explanation(input_data, classifier, feature_names, class_names, predicted_class)
-if explanation:
-    display_lime_plot(explanation)
-else:
-    st.error("Unable to generate LIME explanation for the predicted class.")
-
+        explanation = lime_explanation(input_data, classifier, feature_names, class_names, predicted_class)
+        if explanation:
+            display_lime_plot(explanation)
+        else:
+            st.error("Unable to generate LIME explanation for the predicted class.")
 
     # Download database button
     if st.button("Download Database"):
@@ -238,6 +236,7 @@ else:
                 )
         else:
             st.error("Database file not found.")
+
 
 if __name__ == "__main__":
     main()
