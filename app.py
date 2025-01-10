@@ -98,15 +98,22 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
 
 # Explanation function
 def explain_prediction(input_data, final_result):
-    # Convert input data to a NumPy array for KernelExplainer
-    input_data_array = input_data.to_numpy()
+    # Define a function that will return predictions (probabilities) for SHAP
+    def model_predict(input_data):
+        # Scale the input data as the model expects scaled values
+        columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
+        input_data[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
+        return classifier.predict_proba(input_data)
 
-    # Use KernelExplainer for MLPClassifier
-    explainer = shap.KernelExplainer(classifier.predict_proba, shap.sample(input_data, 100))
-    shap_values = explainer.shap_values(input_data_array)
+    # Create an explainer object using the model_predict wrapper
+    explainer = shap.KernelExplainer(model_predict, shap.sample(input_data, 100))
+    
+    # Generate SHAP values for the input data
+    shap_values = explainer.shap_values(input_data)
 
+    # Get SHAP values for the first input instance
     feature_names = input_data.columns
-    shap_values_for_input = shap_values[0][0]  # Get SHAP values for the first input instance
+    shap_values_for_input = shap_values[0][0]  # SHAP values for the first row
 
     explanation_text = f"**Why your loan is {final_result}:**\n\n"
     for feature, shap_value in zip(feature_names, shap_values_for_input):
