@@ -1,38 +1,33 @@
 import sqlite3
 import pickle
 import streamlit as st
+import matplotlib.pyplot as plt
 import pandas as pd
 import requests
+import os
 
-# URLs for the model and scaler files
-model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
+# URLs for the model and scaler files in your GitHub repository
+model_url = "https://raw.githubusercontent.com/Arnob83/LGR/main/Logistic_Regression_model.pkl"
 scaler_url = "https://raw.githubusercontent.com/Arnob83/LGR/main/scaler.pkl"
 
-# Download the model file and save it locally
-model_response = requests.get(model_url)
-with open("MLP_model.pkl", "wb") as file:
-    file.write(model_response.content)
+# Download and save model and scaler files locally
+if not os.path.exists("Logistic_Regression_model.pkl"):
+    model_response = requests.get(model_url)
+    with open("Logistic_Regression_model.pkl", "wb") as file:
+        file.write(model_response.content)
 
-# Download the scaler file and save it locally
-scaler_response = requests.get(scaler_url)
-with open("scaler.pkl", "wb") as file:
-    file.write(scaler_response.content)
+if not os.path.exists("scaler.pkl"):
+    scaler_response = requests.get(scaler_url)
+    with open("scaler.pkl", "wb") as file:
+        file.write(scaler_response.content)
 
-# Load the trained MLP model
-with open("MLP_model.pkl", "rb") as model_file:
+# Load the trained model
+with open("Logistic_Regression_model.pkl", "rb") as model_file:
     classifier = pickle.load(model_file)
 
-# Load the scaler
+# Load the Min-Max scaler
 with open("scaler.pkl", "rb") as scaler_file:
     scaler = pickle.load(scaler_file)
-
-# Check the trained model's feature order
-if hasattr(classifier, 'feature_names_in_'):
-    trained_feature_order = classifier.feature_names_in_
-    print("Trained model's feature order:")
-    print(trained_feature_order)
-else:
-    raise ValueError("The trained model does not store feature names.")
 
 # Initialize SQLite database
 def init_db():
@@ -78,31 +73,27 @@ def save_to_database(gender, married, dependents, self_employed, loan_amount, pr
 
 # Prediction function
 @st.cache_data
-def prediction(Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term):
+def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term):
     # Map user inputs to numeric values
-    Education_1 = 0 if Education_1 == "Graduate" else 1
+    Education = 0 if Education == "Graduate" else 1
     Credit_History = 0 if Credit_History == "Unclear Debts" else 1
 
-    # Create input data as a DataFrame
+    # Create input data for the model
     input_data = pd.DataFrame(
-        [[Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term]],
+        [[Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term]],
         columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     )
 
-    # Loop for scaling specific features
-    columns_to_scale = ['ApplicantIncome', 'CoapplicantIncome', 'Loan_Amount_Term']
-    for column in columns_to_scale:
-        input_data[column] = scaler.transform(input_data[[column]])
+    # Scale specified features using Min-Max scaler
+    columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
+    input_data[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
 
-    # Ensure feature order matches the trained model
-    input_data_final = input_data[trained_feature_order]
-
-    # Model prediction (0 = Rejected, 1 = Approved)
-    prediction = classifier.predict(input_data_final)
-    probabilities = classifier.predict_proba(input_data_final)  # Get prediction probabilities
+    # Model prediction
+    prediction = classifier.predict(input_data)
+    probabilities = classifier.predict_proba(input_data)
     
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
-    return pred_label, input_data, input_data_final, probabilities
+    return pred_label, input_data, probabilities
 
 # Main Streamlit app
 def main():
@@ -110,48 +101,79 @@ def main():
     init_db()
 
     # App layout
-    st.title("Loan Prediction ML App")
+    st.markdown(
+        """
+        <style>
+        .main-container {
+            background-color: #f4f6f9;
+            border: 2px solid #e6e8eb;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .header {
+            background-color: #4caf50;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .header h1 {
+            color: white;
+        }
+        </style>
+        <div class="main-container">
+        <div class="header">
+        <h1>Loan Prediction ML App</h1>
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     # User inputs
     Gender = st.selectbox("Gender", ("Male", "Female"))
     Married = st.selectbox("Married", ("Yes", "No"))
-    Dependents = st.selectbox("Dependents", (0, 1, 2, 3, 4, 5))
+    Dependents = st.number_input("Dependents (0-5)", min_value=0, max_value=5, step=1)
     Self_Employed = st.selectbox("Self Employed", ("Yes", "No"))
     Loan_Amount = st.number_input("Loan Amount", min_value=0.0)
     Property_Area = st.selectbox("Property Area", ("Urban", "Rural", "Semi-urban"))
     Credit_History = st.selectbox("Credit History", ("Unclear Debts", "Clear Debts"))
-    Education_1 = st.selectbox('Education', ("Graduate", "Not Graduate"))
-    ApplicantIncome = st.number_input("Applicant's yearly Income", min_value=0.0)
-    CoapplicantIncome = st.number_input("Co-applicant's yearly Income", min_value=0.0)
+    Education = st.selectbox("Education", ("Undergraduate", "Graduate"))
+    ApplicantIncome = st.number_input("Applicant's Yearly Income", min_value=0.0)
+    CoapplicantIncome = st.number_input("Co-applicant's Yearly Income", min_value=0.0)
     Loan_Amount_Term = st.number_input("Loan Term (in months)", min_value=0.0)
 
     # Prediction and database saving
     if st.button("Predict"):
-        result, input_data, input_data_final, probabilities = prediction(
-            Credit_History,
-            Education_1,
-            ApplicantIncome,
-            CoapplicantIncome,
-            Loan_Amount_Term
+        result, input_data, probabilities = prediction(
+            Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term
         )
 
         # Save data to database
         save_to_database(Gender, Married, Dependents, Self_Employed, Loan_Amount, Property_Area, 
-                         Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, 
+                         Credit_History, Education, ApplicantIncome, CoapplicantIncome, 
                          Loan_Amount_Term, result)
 
         # Display the prediction
         if result == "Approved":
-            st.success(f"Your loan is Approved! (Probability: {probabilities[0][1]:.2f})", icon="✅")
+            st.success(f"Your loan is Approved! (Probability: {probabilities[0][1]:.2f})")
         else:
-            st.error(f"Your loan is Rejected! (Probability: {probabilities[0][0]:.2f})", icon="❌")
+            st.error(f"Your loan is Rejected! (Probability: {probabilities[0][0]:.2f})")
 
-        # Show prediction values and final input
-        st.subheader("Prediction Value (Unscaled)")
+        st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        st.subheader("Input Data (Final Combined for Prediction)")
-        st.write(input_data_final)
+    # Download database button
+    if st.button("Download Database"):
+        if os.path.exists("loan_data.db"):
+            with open("loan_data.db", "rb") as f:
+                st.download_button(
+                    label="Download SQLite Database",
+                    data=f,
+                    file_name="loan_data.db",
+                    mime="application/octet-stream"
+                )
+        else:
+            st.error("Database file not found.")
 
 if __name__ == '__main__':
     main()
