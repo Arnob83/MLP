@@ -54,7 +54,9 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-# Explanation function using SHAP
+
+
+
 def explain_prediction(input_data, final_result):
     # Define a model prediction function for SHAP (this function is required)
     def model_predict(data):
@@ -68,7 +70,7 @@ def explain_prediction(input_data, final_result):
 
     # Get the SHAP values for the input data
     shap_values = explainer(input_data_for_shap)
-    shap_values_for_input = shap_values[0].values
+    shap_values_for_input = shap_values[0].values  # Accessing the actual SHAP values
 
     # Get feature names for the explanation
     feature_names = input_data.columns
@@ -76,6 +78,9 @@ def explain_prediction(input_data, final_result):
     # Explanation text for the user
     explanation_text = f"**Why your loan is {final_result}:**\n\n"
     for feature, shap_value in zip(feature_names, shap_values_for_input):
+        # Ensure we handle the scalar value of shap_value
+        shap_value = shap_value.item() if isinstance(shap_value, np.ndarray) else shap_value
+        
         explanation_text += (
             f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
         )
@@ -94,6 +99,8 @@ def explain_prediction(input_data, final_result):
     plt.tight_layout()
 
     return explanation_text, plt
+
+
 
 # Main Streamlit app
 def main():
