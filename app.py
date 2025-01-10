@@ -54,33 +54,46 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
-
-
-# Explanation function
+# Explanation function using SHAP
 def explain_prediction(input_data, final_result):
-    explainer = shap.Explainer(classifier)
-    shap_values = explainer.shap_values(input_data)
-    shap_values_for_input = shap_values[0]
+    # Define a model prediction function for SHAP (this function is required)
+    def model_predict(data):
+        return classifier.predict_proba(data)
 
+    # Ensure input_data is in the correct 2D shape for SHAP
+    input_data_for_shap = input_data.values.reshape(1, -1)
+
+    # Initialize SHAP explainer with the model prediction function
+    explainer = shap.Explainer(model_predict, input_data_for_shap)
+
+    # Get the SHAP values for the input data
+    shap_values = explainer(input_data_for_shap)
+    shap_values_for_input = shap_values[0].values
+
+    # Get feature names for the explanation
     feature_names = input_data.columns
+
+    # Explanation text for the user
     explanation_text = f"**Why your loan is {final_result}:**\n\n"
     for feature, shap_value in zip(feature_names, shap_values_for_input):
         explanation_text += (
             f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
         )
+
     if final_result == 'Rejected':
         explanation_text += "\nThe loan was rejected because the negative contributions outweighed the positive ones."
     else:
         explanation_text += "\nThe loan was approved because the positive contributions outweighed the negative ones."
 
+    # Plotting the SHAP bar plot for feature contributions
     plt.figure(figsize=(8, 5))
     plt.barh(feature_names, shap_values_for_input, color=["green" if val > 0 else "red" for val in shap_values_for_input])
     plt.xlabel("SHAP Value (Impact on Prediction)")
     plt.ylabel("Features")
     plt.title("Feature Contributions to Prediction")
     plt.tight_layout()
-    return explanation_text, plt
 
+    return explanation_text, plt
 
 # Main Streamlit app
 def main():
@@ -103,7 +116,7 @@ def main():
             Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term
         )
 
-        # Display the prediction
+        # Display the prediction result
         if result == "Approved":
             st.success(f"Your loan is Approved! (Probability: {probabilities[0][1]:.2f})")
         else:
@@ -112,8 +125,11 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # Show SHAP bar plot for feature importance
-        explain_with_shap(input_data)
+        # Show SHAP explanation and plot for feature importance
+        explanation_text, shap_plot = explain_prediction(input_data, result)
+        st.subheader("Explanation of Prediction")
+        st.write(explanation_text)
+        st.pyplot(shap_plot)  # Display the SHAP bar plot
 
 if __name__ == '__main__':
     main()
