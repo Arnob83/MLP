@@ -123,16 +123,7 @@ def lime_explanation(input_data, classifier, feature_names, class_names, predict
         classifier.predict_proba,
     )
 
-    # Check if the predicted class exists in the explanation
-    if predicted_class not in explanation.local_exp:
-        available_classes = list(explanation.local_exp.keys())
-        st.warning(
-            f"Requested class '{class_names[predicted_class]}' not found in explanation. "
-            f"Defaulting to class '{class_names[available_classes[0]]}'."
-        )
-        predicted_class = available_classes[0]  # Default to the first available class
-
-    return explanation, predicted_class
+   
 
 # Display LIME plot in Streamlit
 def display_lime_plot(explanation):
