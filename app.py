@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import os
+import shap
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
@@ -95,6 +96,31 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
+# Explanation function
+def explain_prediction(input_data, final_result):
+    explainer = shap.TreeExplainer(classifier)
+    shap_values = explainer.shap_values(input_data)
+    shap_values_for_input = shap_values[0]
+
+    feature_names = input_data.columns
+    explanation_text = f"**Why your loan is {final_result}:**\n\n"
+    for feature, shap_value in zip(feature_names, shap_values_for_input):
+        explanation_text += (
+            f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
+        )
+    if final_result == 'Rejected':
+        explanation_text += "\nThe loan was rejected because the negative contributions outweighed the positive ones."
+    else:
+        explanation_text += "\nThe loan was approved because the positive contributions outweighed the negative ones."
+
+    plt.figure(figsize=(8, 5))
+    plt.barh(feature_names, shap_values_for_input, color=["green" if val > 0 else "red" for val in shap_values_for_input])
+    plt.xlabel("SHAP Value (Impact on Prediction)")
+    plt.ylabel("Features")
+    plt.title("Feature Contributions to Prediction")
+    plt.tight_layout()
+    return explanation_text, plt
+
 # Main Streamlit app
 def main():
     # Initialize database
@@ -161,6 +187,11 @@ def main():
 
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
+
+        # Generate and display SHAP explanation
+        explanation_text, shap_plot = explain_prediction(input_data, result)
+        st.markdown(explanation_text)
+        st.pyplot(shap_plot)
 
     # Download database button
     if st.button("Download Database"):
