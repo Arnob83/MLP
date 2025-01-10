@@ -96,9 +96,16 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
 
+import shap
+import matplotlib.pyplot as plt
+
 def explain_with_shap(input_data):
-    # Create a SHAP explainer
-    explainer = shap.Explainer(classifier, input_data)
+    # Create a callable function for prediction (needed for MLPClassifier)
+    def model_predict(data):
+        return classifier.predict_proba(data)
+
+    # Create a SHAP explainer using the model's predict function
+    explainer = shap.Explainer(model_predict, input_data)
 
     # Calculate SHAP values
     shap_values = explainer(input_data)
@@ -109,7 +116,6 @@ def explain_with_shap(input_data):
 
     # Display SHAP plot in Streamlit
     st.pyplot(fig)
-
 
 # Main Streamlit app
 def main():
@@ -178,8 +184,7 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # SHAP explanation and plot
-        st.subheader("Feature Importance (SHAP Bar Plot)")
+        # Show SHAP plot for feature importance
         explain_with_shap(input_data)
 
     # Download database button
@@ -190,7 +195,6 @@ def main():
                     label="Download SQLite Database",
                     data=f,
                     file_name="loan_data.db",
-
                     mime="application/octet-stream"
                 )
         else:
@@ -198,3 +202,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+                         
