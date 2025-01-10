@@ -99,6 +99,7 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
 
 
 
+
 def explain_prediction(input_data, final_result):
     # We need to define a function that works with SHAP's KernelExplainer.
     def model_predict(input_data):
@@ -116,10 +117,12 @@ def explain_prediction(input_data, final_result):
 
     feature_names = input_data.columns
     explanation_text = f"**Why your loan is {final_result}:**\n\n"
+    
+    # Iterate through the features and their SHAP values
     for feature, shap_value in zip(feature_names, shap_values_for_input):
-        # Check if shap_value is an instance of a numpy.ndarray
-        if isinstance(shap_value, np.ndarray):
-            shap_value = shap_value.item()  # Convert to scalar if it's an ndarray
+        # Check if shap_value is a NumPy array and convert to scalar if necessary
+        if isinstance(shap_value, np.ndarray) and shap_value.size == 1:
+            shap_value = shap_value.item()  # Convert to scalar if it's an ndarray with size 1
         explanation_text += (
             f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
         )
@@ -131,8 +134,10 @@ def explain_prediction(input_data, final_result):
 
     # Generate the SHAP bar plot
     plt.figure(figsize=(8, 5))
-    shap_values_for_input_list = [shap_value.item() if isinstance(shap_value, np.ndarray) else shap_value 
-                                  for shap_value in shap_values_for_input]
+    shap_values_for_input_list = [
+        shap_value.item() if isinstance(shap_value, np.ndarray) and shap_value.size == 1 else shap_value 
+        for shap_value in shap_values_for_input
+    ]
     plt.barh(feature_names, shap_values_for_input_list, 
              color=["green" if val > 0 else "red" for val in shap_values_for_input_list])
     plt.xlabel("SHAP Value (Impact on Prediction)")
@@ -141,6 +146,7 @@ def explain_prediction(input_data, final_result):
     plt.tight_layout()
 
     return explanation_text, plt
+
 
 
 
