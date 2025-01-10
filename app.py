@@ -3,9 +3,9 @@ import pickle
 import streamlit as st
 import matplotlib.pyplot as plt
 import pandas as pd
+import shap
 import requests
 import os
-import shap
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
@@ -96,19 +96,16 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
 
     # SHAP Explanation
-    explainer = shap.KernelExplainer(classifier.predict_proba, input_data)
+    explainer = shap.KernelExplainer(classifier.predict_proba, shap.sample(input_data, nsamples=1))
     shap_values = explainer.shap_values(input_data)
 
-    # Handle SHAP values based on their size
-    if len(shap_values) == 1:
+    # Handle SHAP values dynamically
+    if len(shap_values) == 1:  # Only one class in SHAP values
         shap_summary_values = shap_values[0]
-    elif len(shap_values) > 1:
+    elif len(shap_values) > 1:  # Multiple classes, choose "Approved"
         shap_summary_values = shap_values[1]
 
-    # Create a summary plot for SHAP values
-    shap.summary_plot(shap_summary_values, input_data, feature_names=input_data.columns)
-
-    return pred_label, input_data, probabilities, shap_values
+    return pred_label, input_data, probabilities, shap_summary_values
 
 # Main Streamlit app
 def main():
@@ -159,7 +156,7 @@ def main():
 
     # Prediction and database saving
     if st.button("Predict"):
-        result, input_data, probabilities, shap_values = prediction(
+        result, input_data, probabilities, shap_summary_values = prediction(
             Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term
         )
 
@@ -177,8 +174,10 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        st.subheader("SHAP Feature Importance")
-        shap.force_plot(explainer.expected_value[1], shap_values[1], input_data, matplotlib=True)
+        st.subheader("Feature Importance")
+        fig, ax = plt.subplots()
+        shap.summary_plot(shap_summary_values, input_data, feature_names=input_data.columns, show=False)
+        st.pyplot(fig)
 
     # Download database button
     if st.button("Download Database"):
