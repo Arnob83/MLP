@@ -79,23 +79,23 @@ def save_to_database(gender, married, dependents, self_employed, loan_amount, pr
 # Prediction function
 @st.cache_data
 def prediction(Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term):
-    # Map user inputs to numeric values (if necessary)
+    # Map user inputs to numeric values
     Education_1 = 0 if Education_1 == "Graduate" else 1
     Credit_History = 0 if Credit_History == "Unclear Debts" else 1
 
-    # Create input data (all user inputs)
+    # Create input data as a DataFrame
     input_data = pd.DataFrame(
         [[Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term]],
         columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     )
 
-    # Scale only the specified features
+    # Loop for scaling specific features
     columns_to_scale = ['ApplicantIncome', 'CoapplicantIncome', 'Loan_Amount_Term']
-    input_data_scaled = input_data.copy()
-    input_data_scaled[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
+    for column in columns_to_scale:
+        input_data[column] = scaler.transform(input_data[[column]])
 
-    # Ensure feature order matches the trained model's feature order
-    input_data_final = input_data_scaled[trained_feature_order]
+    # Ensure feature order matches the trained model
+    input_data_final = input_data[trained_feature_order]
 
     # Model prediction (0 = Rejected, 1 = Approved)
     prediction = classifier.predict(input_data_final)
