@@ -91,17 +91,18 @@ def prediction(Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, 
 
     # Scale only the specified features
     columns_to_scale = ['ApplicantIncome', 'CoapplicantIncome', 'Loan_Amount_Term']
-    input_data[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
+    input_data_scaled = input_data.copy()
+    input_data_scaled[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
 
     # Ensure feature order matches the trained model's feature order
-    input_data = input_data[trained_feature_order]
+    input_data_final = input_data_scaled[trained_feature_order]
 
     # Model prediction (0 = Rejected, 1 = Approved)
-    prediction = classifier.predict(input_data)
-    probabilities = classifier.predict_proba(input_data)  # Get prediction probabilities
+    prediction = classifier.predict(input_data_final)
+    probabilities = classifier.predict_proba(input_data_final)  # Get prediction probabilities
     
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
-    return pred_label, input_data, probabilities
+    return pred_label, input_data, input_data_final, probabilities
 
 # Main Streamlit app
 def main():
@@ -126,7 +127,7 @@ def main():
 
     # Prediction and database saving
     if st.button("Predict"):
-        result, input_data, probabilities = prediction(
+        result, input_data, input_data_final, probabilities = prediction(
             Credit_History,
             Education_1,
             ApplicantIncome,
@@ -145,9 +146,12 @@ def main():
         else:
             st.error(f"Your loan is Rejected! (Probability: {probabilities[0][0]:.2f})", icon="❌")
 
-        # Show prediction values and scaled values
-        st.subheader("Input Data (Used for Prediction)")
+        # Show prediction values and final input
+        st.subheader("Prediction Value (Unscaled)")
         st.write(input_data)
+
+        st.subheader("Input Data (Final Combined for Prediction)")
+        st.write(input_data_final)
 
 if __name__ == '__main__':
     main()
