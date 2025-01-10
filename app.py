@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import os
-import shap
-import numpy as np
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
@@ -80,13 +78,19 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     Education = 0 if Education == "Graduate" else 1
     Credit_History = 0 if Credit_History == "Unclear Debts" else 1
 
-    # Create input data for the model
+    # Create the input data frame
     input_data = pd.DataFrame(
         [[Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term]],
         columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     )
 
-    # Scale specified features using Min-Max scaler
+    # Identify the order by looking at the trained model's expected feature order
+    model_columns = input_data.columns.tolist()  # Initialize model columns dynamically based on input data order
+
+    # Reorder input data to match model's expected feature order (this is a fallback method)
+    input_data = input_data[model_columns]
+
+    # Apply scaling to the appropriate columns (assuming scaling should happen on income-related features)
     columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     input_data[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
 
@@ -96,61 +100,6 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, probabilities
-
-
-
-
-def explain_prediction(input_data, final_result):
-    # We need to define a function that works with SHAP's KernelExplainer.
-    def model_predict(input_data):
-        return classifier.predict_proba(input_data)
-
-    # Use KernelExplainer with the model's prediction function
-    explainer = shap.KernelExplainer(model_predict, input_data)
-    shap_values = explainer.shap_values(input_data)
-
-    # Check the shape of the shap_values array to ensure it has the expected number of classes
-    if len(shap_values) > 1:
-        shap_values_for_input = shap_values[1]  # Use the SHAP values for the 'Approved' class
-    else:
-        shap_values_for_input = shap_values[0]  # Use the SHAP values for the only class available
-
-    feature_names = input_data.columns
-    explanation_text = f"**Why your loan is {final_result}:**\n\n"
-    
-    # Iterate through the features and their SHAP values
-    for feature, shap_value in zip(feature_names, shap_values_for_input):
-        # Check if shap_value is a NumPy array and convert to scalar if necessary
-        if isinstance(shap_value, np.ndarray) and shap_value.size == 1:
-            shap_value = shap_value.item()  # Convert to scalar if it's an ndarray with size 1
-        explanation_text += (
-            f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
-        )
-    
-    if final_result == 'Rejected':
-        explanation_text += "\nThe loan was rejected because the negative contributions outweighed the positive ones."
-    else:
-        explanation_text += "\nThe loan was approved because the positive contributions outweighed the negative ones."
-
-    # Generate the SHAP bar plot
-    plt.figure(figsize=(8, 5))
-    shap_values_for_input_list = [
-        shap_value.item() if isinstance(shap_value, np.ndarray) and shap_value.size == 1 else shap_value 
-        for shap_value in shap_values_for_input
-    ]
-    plt.barh(feature_names, shap_values_for_input_list, 
-             color=["green" if val > 0 else "red" for val in shap_values_for_input_list])
-    plt.xlabel("SHAP Value (Impact on Prediction)")
-    plt.ylabel("Features")
-    plt.title("Feature Contributions to Prediction")
-    plt.tight_layout()
-
-    return explanation_text, plt
-
-
-
-
-
 
 # Main Streamlit app
 def main():
@@ -219,11 +168,6 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(input_data)
 
-        # Show SHAP explanation
-        explanation_text, shap_plot = explain_prediction(input_data, result)
-        st.markdown(explanation_text)
-        st.pyplot(shap_plot)
-
     # Download database button
     if st.button("Download Database"):
         if os.path.exists("loan_data.db"):
@@ -232,7 +176,6 @@ def main():
                     label="Download SQLite Database",
                     data=f,
                     file_name="loan_data.db",
-
                     mime="application/octet-stream"
                 )
         else:
