@@ -1,7 +1,6 @@
 import sqlite3
 import pickle
 import streamlit as st
-import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import os
