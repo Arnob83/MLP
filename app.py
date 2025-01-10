@@ -98,7 +98,7 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     return pred_label, input_data, probabilities
 
 # Function to generate LIME explanations and plot feature importance
-def lime_explanation(input_data, classifier, feature_names, class_names):
+def lime_explanation(input_data, classifier, feature_names, class_names, predicted_class):
     # Create training data for the explainer
     training_data = pd.DataFrame(
         [
@@ -120,6 +120,7 @@ def lime_explanation(input_data, classifier, feature_names, class_names):
     explanation = explainer.explain_instance(
         input_data.values[0],  # Single instance for explanation
         classifier.predict_proba,
+        labels=[predicted_class],  # Specify the predicted class to explain
     )
     return explanation
 
@@ -181,6 +182,9 @@ def main():
             Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term
         )
 
+        # Determine the predicted class (0 = Rejected, 1 = Approved)
+        predicted_class = 1 if result == "Approved" else 0
+
         # Save data to database
         save_to_database(
             Gender,
@@ -207,10 +211,10 @@ def main():
         st.write(input_data)
 
         # LIME explanation
-        st.subheader("Feature Importance via LIME")
+        st.subheader(f"Feature Importance for Class: {result}")
         feature_names = ["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
         class_names = ["Rejected", "Approved"]
-        explanation = lime_explanation(input_data, classifier, feature_names, class_names)
+        explanation = lime_explanation(input_data, classifier, feature_names, class_names, predicted_class)
         display_lime_plot(explanation)
 
     # Download database button
