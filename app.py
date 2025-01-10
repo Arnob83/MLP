@@ -3,9 +3,8 @@ import pickle
 import streamlit as st
 import pandas as pd
 import requests
-import os
 
-# URLs for the model and scaler files in your GitHub repository
+# URLs for the model and scaler files
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/MLP_model.pkl"
 scaler_url = "https://raw.githubusercontent.com/Arnob83/LGR/main/scaler.pkl"
 
@@ -82,23 +81,17 @@ def prediction(Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, 
         columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     )
 
-    # Preserve feature order to match the training data
-    feature_order = ["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-
     # Scale only the specified features
     columns_to_scale = ['ApplicantIncome', 'CoapplicantIncome', 'Loan_Amount_Term']
-    input_data_scaled = input_data.copy()
-    input_data_scaled[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
-
-    # Ensure the final DataFrame follows the same order as the training features
-    input_data_scaled = input_data_scaled[feature_order]
+    input_data_combined = input_data.copy()
+    input_data_combined[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
 
     # Model prediction (0 = Rejected, 1 = Approved)
-    prediction = classifier.predict(input_data_scaled)
-    probabilities = classifier.predict_proba(input_data_scaled)  # Get prediction probabilities
+    prediction = classifier.predict(input_data_combined)
+    probabilities = classifier.predict_proba(input_data_combined)  # Get prediction probabilities
     
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
-    return pred_label, input_data, input_data_scaled, probabilities
+    return pred_label, input_data, input_data_combined, probabilities
 
 # Main Streamlit app
 def main():
@@ -123,7 +116,7 @@ def main():
 
     # Prediction and database saving
     if st.button("Predict"):
-        result, input_data, input_data_scaled, probabilities = prediction(
+        result, input_data, input_data_combined, probabilities = prediction(
             Credit_History,
             Education_1,
             ApplicantIncome,
@@ -146,8 +139,8 @@ def main():
         st.subheader("Prediction Value")
         st.write(input_data)
 
-        st.subheader("Input Data (Scaled)")
-        st.write(input_data_scaled)
+        st.subheader("Input Data (Scaled and Combined)")
+        st.write(input_data_combined)
 
 if __name__ == '__main__':
     main()
