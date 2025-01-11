@@ -75,77 +75,54 @@ def save_to_database(gender, married, dependents, self_employed, loan_amount, pr
 # Prediction function
 @st.cache_data
 def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term):
-    # Map user inputs to numeric values
     Education = 0 if Education == "Graduate" else 1
     Credit_History = 0 if Credit_History == "Unclear Debts" else 1
 
-    # Original input data
-    original_data = pd.DataFrame(
+    input_data = pd.DataFrame(
         [[Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term]],
         columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     )
 
-    # Scale specified features using Min-Max scaler
-    scaled_data = original_data.copy()
     columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-    scaled_data[columns_to_scale] = scaler.transform(scaled_data[columns_to_scale])
+    scaled_input = input_data.copy()
+    scaled_input[columns_to_scale] = scaler.transform(scaled_input[columns_to_scale])
 
-    # Model prediction
-    prediction = classifier.predict(scaled_data)
-    probabilities = classifier.predict_proba(scaled_data)
+    prediction = classifier.predict(scaled_input)
+    probabilities = classifier.predict_proba(scaled_input)
 
-    # Return prediction, original data, scaled data, and probabilities
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
-    return pred_label, original_data, scaled_data, probabilities
+    return pred_label, input_data, scaled_input, probabilities
 
-# SHAP explanation function
-def explain_with_shap(original_data, scaled_data):
-    # Use SHAP Explainer with the scaled data but display results with original data
-    explainer = shap.Explainer(classifier.predict_proba, scaled_data)
-    
-    # Calculate SHAP values
-    shap_values = explainer(scaled_data)
-    
-    # Generate SHAP bar plot for the "Approved" class (class 1) using original data
-    shap.summary_plot(shap_values[..., 1], original_data, plot_type="bar", show=False)
-    plt.tight_layout()
-    return plt
+# SHAP explanation functions
+def shap_force_and_decision_plot(original_data, scaled_data):
+    combined_data = pd.concat([scaled_data, original_data], axis=1)
+
+    explainer = shap.Explainer(classifier.predict_proba, combined_data)
+
+    shap_values = explainer(combined_data)
+
+    st.subheader("SHAP Force Plot (Single Prediction)")
+    force_plot = shap.force_plot(
+        explainer.expected_value[1],
+        shap_values[0, :, 1],
+        original_data.iloc[0, :]
+    )
+    st.pyplot(shap.plots._force._matplotlib(force_plot))  # Render in Streamlit
+
+    st.subheader("SHAP Decision Plot (Single Prediction)")
+    shap.decision_plot(
+        explainer.expected_value[1],
+        shap_values[..., 1],
+        original_data
+    )
+    st.pyplot()
 
 # Main Streamlit app
 def main():
-    # Initialize database
     init_db()
 
-    # App layout
-    st.markdown(
-        """
-        <style>
-        .main-container {
-            background-color: #f4f6f9;
-            border: 2px solid #e6e8eb;
-            padding: 20px;
-            border-radius: 10px;
-        }
-        .header {
-            background-color: #4caf50;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-        }
-        .header h1 {
-            color: white;
-        }
-        </style>
-        <div class="main-container">
-        <div class="header">
-        <h1>Loan Prediction ML App</h1>
-        </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.title("Loan Prediction ML App")
 
-    # User inputs
     Gender = st.selectbox("Gender", ("Male", "Female"))
     Married = st.selectbox("Married", ("Yes", "No"))
     Dependents = st.number_input("Dependents (0-5)", min_value=0, max_value=5, step=1)
@@ -158,35 +135,23 @@ def main():
     CoapplicantIncome = st.number_input("Co-applicant's Yearly Income", min_value=0.0)
     Loan_Amount_Term = st.number_input("Loan Term (in months)", min_value=0.0)
 
-    # Prediction and database saving
     if st.button("Predict"):
         result, original_data, scaled_data, probabilities = prediction(
             Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term
         )
 
-        # Save data to database
         save_to_database(Gender, Married, Dependents, Self_Employed, Loan_Amount, Property_Area, 
                          Credit_History, Education, ApplicantIncome, CoapplicantIncome, 
                          Loan_Amount_Term, result)
 
-        # Display the prediction
         if result == "Approved":
             st.success(f"Your loan is Approved! (Probability: {probabilities[0][1]:.2f})")
         else:
             st.error(f"Your loan is Rejected! (Probability: {probabilities[0][0]:.2f})")
 
-        st.subheader("Input Data (Scaled for Model Prediction)")
-        st.write(scaled_data)
+        st.subheader("SHAP Feature Importance")
+        shap_force_and_decision_plot(original_data, scaled_data)
 
-        st.subheader("Input Data (Original for Interpretability)")
-        st.write(original_data)
-
-        # SHAP Explanation
-        st.subheader("Feature Importance using SHAP")
-        shap_plot = explain_with_shap(original_data, scaled_data)
-        st.pyplot(shap_plot)
-
-    # Download database button
     if st.button("Download Database"):
         if os.path.exists("loan_data.db"):
             with open("loan_data.db", "rb") as f:
