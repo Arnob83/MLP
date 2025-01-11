@@ -72,41 +72,41 @@ def save_to_database(gender, married, dependents, self_employed, loan_amount, pr
     conn.commit()
     conn.close()
 
-    # Prediction function
+# Prediction function
 @st.cache_data
 def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term):
     # Map user inputs to numeric values
     Education = 0 if Education == "Graduate" else 1
     Credit_History = 0 if Credit_History == "Unclear Debts" else 1
 
-    # Create input data for the model
-    input_data = pd.DataFrame(
+    # Original input data
+    original_data = pd.DataFrame(
         [[Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term]],
         columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     )
 
     # Scale specified features using Min-Max scaler
+    scaled_data = original_data.copy()
     columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-    scaled_input = input_data.copy()
-    scaled_input[columns_to_scale] = scaler.transform(scaled_input[columns_to_scale])
+    scaled_data[columns_to_scale] = scaler.transform(scaled_data[columns_to_scale])
 
     # Model prediction
-    prediction = classifier.predict(scaled_input)
-    probabilities = classifier.predict_proba(scaled_input)
+    prediction = classifier.predict(scaled_data)
+    probabilities = classifier.predict_proba(scaled_data)
 
-    # Return prediction, scaled input, and original input (to use for SHAP)
+    # Return prediction, original data, scaled data, and probabilities
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
-    return pred_label, input_data, scaled_input, probabilities
+    return pred_label, original_data, scaled_data, probabilities
 
 # SHAP explanation function
 def explain_with_shap(original_data, scaled_data):
-    # Use SHAP Explainer for the classifier
+    # Use SHAP Explainer with the scaled data but display results with original data
     explainer = shap.Explainer(classifier.predict_proba, scaled_data)
-
+    
     # Calculate SHAP values
     shap_values = explainer(scaled_data)
-
-    # Generate SHAP bar plot for the "Approved" class (class 1) with original data
+    
+    # Generate SHAP bar plot for the "Approved" class (class 1) using original data
     shap.summary_plot(shap_values[..., 1], original_data, plot_type="bar", show=False)
     plt.tight_layout()
     return plt
