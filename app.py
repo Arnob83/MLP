@@ -75,18 +75,25 @@ def save_to_database(gender, married, dependents, self_employed, loan_amount, pr
 # Prediction function
 @st.cache_data
 def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term):
+    # Feature mapping
     Education = 0 if Education == "Graduate" else 1
     Credit_History = 0 if Credit_History == "Unclear Debts" else 1
 
+    # Create input data with the correct feature order
     input_data = pd.DataFrame(
         [[Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term]],
         columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     )
 
+    # Scale specified features using Min-Max scaler
     columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     scaled_input = input_data.copy()
     scaled_input[columns_to_scale] = scaler.transform(scaled_input[columns_to_scale])
 
+    # Ensure feature names match model training
+    scaled_input = scaled_input[classifier.feature_names_in_]
+
+    # Model prediction
     prediction = classifier.predict(scaled_input)
     probabilities = classifier.predict_proba(scaled_input)
 
