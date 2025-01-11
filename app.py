@@ -72,7 +72,7 @@ def save_to_database(gender, married, dependents, self_employed, loan_amount, pr
     conn.commit()
     conn.close()
 
-# Prediction function
+    # Prediction function
 @st.cache_data
 def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term):
     # Map user inputs to numeric values
@@ -87,25 +87,27 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
 
     # Scale specified features using Min-Max scaler
     columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-    input_data[columns_to_scale] = scaler.transform(input_data[columns_to_scale])
+    scaled_input = input_data.copy()
+    scaled_input[columns_to_scale] = scaler.transform(scaled_input[columns_to_scale])
 
     # Model prediction
-    prediction = classifier.predict(input_data)
-    probabilities = classifier.predict_proba(input_data)
-    
+    prediction = classifier.predict(scaled_input)
+    probabilities = classifier.predict_proba(scaled_input)
+
+    # Return prediction, scaled input, and original input (to use for SHAP)
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
-    return pred_label, input_data, probabilities
+    return pred_label, input_data, scaled_input, probabilities
 
 # SHAP explanation function
-def explain_with_shap(input_data):
-    # Use SHAP Explainer for MLP
-    explainer = shap.Explainer(classifier.predict_proba, input_data)
+def explain_with_shap(original_data, scaled_data):
+    # Use SHAP Explainer for the classifier
+    explainer = shap.Explainer(classifier.predict_proba, scaled_data)
 
-    # Calculate SHAP values for the input instance
-    shap_values = explainer(input_data)  # Direct call returns SHAP values
+    # Calculate SHAP values
+    shap_values = explainer(scaled_data)
 
-    # Generate SHAP bar plot for the "Approved" class (class 1)
-    shap.summary_plot(shap_values.values[..., 1], input_data, plot_type="bar", show=False)
+    # Generate SHAP bar plot for the "Approved" class (class 1) with original data
+    shap.summary_plot(shap_values[..., 1], original_data, plot_type="bar", show=False)
     plt.tight_layout()
     return plt
 
@@ -158,7 +160,7 @@ def main():
 
     # Prediction and database saving
     if st.button("Predict"):
-        result, input_data, probabilities = prediction(
+        result, original_data, scaled_data, probabilities = prediction(
             Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term
         )
 
@@ -173,12 +175,15 @@ def main():
         else:
             st.error(f"Your loan is Rejected! (Probability: {probabilities[0][0]:.2f})")
 
-        st.subheader("Input Data (Scaled)")
-        st.write(input_data)
+        st.subheader("Input Data (Scaled for Model Prediction)")
+        st.write(scaled_data)
+
+        st.subheader("Input Data (Original for Interpretability)")
+        st.write(original_data)
 
         # SHAP Explanation
         st.subheader("Feature Importance using SHAP")
-        shap_plot = explain_with_shap(input_data)
+        shap_plot = explain_with_shap(original_data, scaled_data)
         st.pyplot(shap_plot)
 
     # Download database button
