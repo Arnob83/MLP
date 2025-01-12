@@ -10,7 +10,7 @@ import os
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/Logistic_Regression_model.pkl"
 scaler_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/scaler.pkl"
 
-x_train_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/X_train.pkl"
+x_train_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/X_train_scaled.pkl"
 
 
 # Download the model file and save it locally
