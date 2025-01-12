@@ -190,12 +190,13 @@ def main():
         else:
             st.error(f"Your loan is Rejected! (Probability: {probabilities[0][0]:.2f})", icon="❌")
 
-        # Show prediction values and scaled values
-        st.subheader("Prediction Value")
-        st.write(input_data)
+        # Show the original user input data (without scaling)
+        st.subheader("User Input Data")
+        st.write(input_data)  # Display the raw user input data (before scaling)
 
+        # Optionally show the scaled data (only if needed for feature importance or other insights)
         st.subheader("Input Data (Scaled)")
-        st.write(pd.DataFrame(input_data_filtered, columns=input_data.columns))
+        st.write(pd.DataFrame(input_data_filtered, columns=input_data.columns))  # This will display the scaled values
 
         # Calculate feature contributions
         coefficients = classifier.coef_[0]
