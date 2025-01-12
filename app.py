@@ -100,46 +100,58 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, scaled_input, probabilities
 
-# Feature importance function using coefficients
-def plot_feature_importance():
-    feature_names = classifier.feature_names_in_
-    coefficients = classifier.coef_[0]
 
-    # Absolute value of coefficients for feature importance
-    importance = np.abs(coefficients)
 
-    # Create a DataFrame to show feature importance
-    feature_importance_df = pd.DataFrame({
-        'Feature': feature_names,
-        'Importance': importance,
-        'Coefficient': coefficients  # Adding coefficients to the plot for more details
-    }).sort_values(by='Importance', ascending=False)
+# Function to create feature importance plot
+def plot_feature_importance(features, coefficients):
+    # Create a horizontal bar chart for feature importance
+    plt.figure(figsize=(8, 5))
+    colors = ["green" if coef > 0 else "red" for coef in coefficients]
+    bars = plt.barh(features, coefficients, color=colors)
+    for bar, coef in zip(bars, coefficients):
+        plt.text(bar.get_width(), bar.get_y() + bar.get_height() / 2, f"{coef:.4f}", va='center')
+    plt.xlabel("Coefficient (Impact on Prediction)")
+    plt.ylabel("Features")
+    plt.title("Feature Importance")
+    plt.tight_layout()
+    return plt
 
-    # Plotting the feature importance
-    st.subheader("Feature Importance")
-    st.write(feature_importance_df)
 
-    # Creating the horizontal bar plot
-    fig, ax = plt.subplots(figsize=(8, 5))  # Adjust the size of the plot as per your need
-    colors = ["green" if coef > 0 else "red" for coef in feature_importance_df['Coefficient']]  # Color bars based on coefficient sign
-    bars = ax.barh(feature_importance_df['Feature'], feature_importance_df['Importance'], color=colors)
 
-    # Annotating the bars with coefficient values
-    for bar, coef in zip(bars, feature_importance_df['Coefficient']):
-        ax.text(bar.get_width(), bar.get_y() + bar.get_height() / 2, f"{coef:.4f}", va='center')
 
-    ax.set_xlabel('Importance')
-    ax.set_title('Feature Importance based on Logistic Regression Coefficients')
-
-    # Show the plot in Streamlit
-    st.pyplot(fig)
 
 # Main Streamlit app
 def main():
     init_db()
 
-    st.title("Loan Prediction ML App")
-
+    # App layout
+    st.markdown(
+        """
+        <style>
+        .main-container {
+            background-color: #f4f6f9;
+            border: 2px solid #e6e8eb;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .header {
+            background-color: #4caf50;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .header h1 {
+            color: white;
+        }
+        </style>
+        <div class="main-container">
+        <div class="header">
+        <h1>Loan Prediction ML App</h1>
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     Gender = st.selectbox("Gender", ("Male", "Female"))
     Married = st.selectbox("Married", ("Yes", "No"))
     Dependents = st.number_input("Dependents (0-5)", min_value=0, max_value=5, step=1)
