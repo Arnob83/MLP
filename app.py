@@ -12,9 +12,9 @@ model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/Logistic_Regress
 scaler_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/scaler.pkl"
 
 # Download and save model and scaler files locally
-if not os.path.exists("MLP_model.pkl"):
+if not os.path.exists("Logistic_Regression_model.pkl"):
     model_response = requests.get(model_url)
-    with open("MLP_model.pkl", "wb") as file:
+    with open("Logistic_Regression_model.pkl", "wb") as file:
         file.write(model_response.content)
 
 if not os.path.exists("scaler.pkl"):
