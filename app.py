@@ -33,11 +33,11 @@ with open("scaler.pkl", "rb") as scaler_file:
 
 # Download and save the X_train.pkl file
 response_x_train = requests.get(x_train_url)
-with open("X_train.pkl", "wb") as file:
+with open("X_train_scaled", "wb") as file:
     file.write(response_x_train.content)
 
 # Load X_train
-with open("X_train.pkl", "rb") as file:
+with open("X_train_scaled", "rb") as file:
     X_train = pickle.load(file)
 
 
@@ -135,7 +135,7 @@ def explain_prediction(input_data_filtered, final_result):
     along with a bar chart for SHAP values.
     """
     # Initialize SHAP Linear Explainer with the background dataset
-    explainer = shap.LinearExplainer(classifier, X_train, feature_perturbation="interventional")
+    explainer = shap.LinearExplainer(classifier, X_train_scaled, feature_perturbation="interventional")
     shap_values = explainer.shap_values(input_data_filtered)
 
     # Extract SHAP values for the input data
@@ -172,19 +172,7 @@ def explain_prediction(input_data_filtered, final_result):
 
 
 
-# Function to create feature importance plot
-def plot_feature_importance(features, coefficients):
-    # Create a horizontal bar chart for feature importance
-    plt.figure(figsize=(8, 5))
-    colors = ["green" if coef > 0 else "red" for coef in coefficients]
-    bars = plt.barh(features, coefficients, color=colors)
-    for bar, coef in zip(bars, coefficients):
-        plt.text(bar.get_width(), bar.get_y() + bar.get_height() / 2, f"{coef:.4f}", va='center')
-    plt.xlabel("Coefficient (Impact on Prediction)")
-    plt.ylabel("Features")
-    plt.title("Feature Importance")
-    plt.tight_layout()
-    return plt
+
 
 # Main Streamlit app
 def main():
