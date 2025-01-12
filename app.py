@@ -6,6 +6,8 @@ import pandas as pd
 import requests
 import os
 import shap
+from shap.maskers import Independent
+
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/Logistic_Regression_model.pkl"
@@ -130,13 +132,15 @@ def prediction(Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, 
 
 
 # Explanation function
+# Explanation function
 def explain_prediction(input_data_filtered, final_result):
     """
     Analyze features and provide a detailed explanation of the prediction,
     along with a bar chart for SHAP values.
     """
-    # Initialize SHAP Linear Explainer with the background dataset
-    explainer = shap.LinearExplainer(classifier, X_train_scaled, feature_perturbation="interventional")
+    # Initialize SHAP Linear Explainer with the background dataset and appropriate masker
+    masker = Independent(X_train_scaled)  # Use Independent masker
+    explainer = shap.LinearExplainer(classifier, masker)
     shap_values = explainer.shap_values(input_data_filtered)
 
     # Extract SHAP values for the input data
@@ -166,7 +170,6 @@ def explain_prediction(input_data_filtered, final_result):
     plt.tight_layout()
 
     return explanation_text, plt
-
 
 
 
