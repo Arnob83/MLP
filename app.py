@@ -199,6 +199,12 @@ def main():
 
         # Calculate feature contributions
         coefficients = classifier.coef_[0]
+        
+        # Handle non-scaled features separately and ensure they are included in the contribution calculation
+        input_data_filtered["Credit_History"] = input_data["Credit_History"].values
+        input_data_filtered["Education_1"] = input_data["Education_1"].values
+
+        # Compute the contributions as before, but now with the raw (non-scaled) values for Credit_History and Education_1
         feature_contributions = coefficients * input_data_filtered.iloc[0]
 
         # Create a DataFrame for visualization
