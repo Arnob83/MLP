@@ -39,7 +39,7 @@ with open("X_train_scaled", "wb") as file:
 
 # Load X_train
 with open("X_train_scaled", "rb") as file:
-    X_train = pickle.load(file)
+    X_train_scaled = pickle.load(file)
 
 
 
