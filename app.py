@@ -5,28 +5,26 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import os
-import numpy as np
 
 # URLs for the model and scaler files in your GitHub repository
-model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/Logistic_Regression_model.pkl"
-scaler_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/scaler.pkl"
+model_url = "https://raw.githubusercontent.com/Arnob83/LGR/main/Logistic_Regression_model.pkl"
+scaler_url = "https://raw.githubusercontent.com/Arnob83/LGR/main/scaler.pkl"
 
-# Download and save model and scaler files locally
-if not os.path.exists("Logistic_Regression_model.pkl"):
-    model_response = requests.get(model_url)
-    with open("Logistic_Regression_model.pkl", "wb") as file:
-        file.write(model_response.content)
+# Download the model file and save it locally
+model_response = requests.get(model_url)
+with open("Logistic_Regression_model.pkl", "wb") as file:
+    file.write(model_response.content)
 
-if not os.path.exists("scaler.pkl"):
-    scaler_response = requests.get(scaler_url)
-    with open("scaler.pkl", "wb") as file:
-        file.write(scaler_response.content)
+# Download the scaler file and save it locally
+scaler_response = requests.get(scaler_url)
+with open("scaler.pkl", "wb") as file:
+    file.write(scaler_response.content)
 
 # Load the trained model
 with open("Logistic_Regression_model.pkl", "rb") as model_file:
     classifier = pickle.load(model_file)
 
-# Load the Min-Max scaler
+# Load the scaler
 with open("scaler.pkl", "rb") as scaler_file:
     scaler = pickle.load(scaler_file)
 
@@ -74,33 +72,41 @@ def save_to_database(gender, married, dependents, self_employed, loan_amount, pr
 
 # Prediction function
 @st.cache_data
-def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term):
-    # Feature mapping
-    Education = 0 if Education == "Graduate" else 1
+def prediction(Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term):
+    # Map user inputs to numeric values (if necessary)
+    Education_1 = 0 if Education_1 == "Graduate" else 1
     Credit_History = 0 if Credit_History == "Unclear Debts" else 1
 
-    # Create input data with the correct feature order
+    # Create input data with all user inputs
     input_data = pd.DataFrame(
-        [[Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term]],
+        [[Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term]],
         columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     )
 
-    # Scale specified features using Min-Max scaler
-    columns_to_scale = ["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
-    scaled_input = input_data.copy()
-    scaled_input[columns_to_scale] = scaler.transform(scaled_input[columns_to_scale])
+    # Scale only the relevant features (ApplicantIncome, CoapplicantIncome, Loan_Amount_Term)
+    features_to_scale = input_data[["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]]
+    scaled_features = scaler.transform(features_to_scale)
 
-    # Ensure feature names match model training
-    scaled_input = scaled_input[classifier.feature_names_in_]
+    # Replace the original unscaled values with the scaled values
+    input_data[["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]] = scaled_features
 
-    # Model prediction
-    prediction = classifier.predict(scaled_input)
-    probabilities = classifier.predict_proba(scaled_input)
+    # Ensure input_data columns match the model's expected feature names and order
+    trained_features = classifier.feature_names_in_  # Features used in model training
 
+    # Check if input_data columns match the trained features
+    if list(input_data.columns) != list(trained_features):
+        raise ValueError(f"Input data features do not match the model's training features. "
+                         f"Expected: {trained_features}, Found: {input_data.columns}")
+
+    # Filter to only include features used by the model
+    input_data_filtered = input_data[trained_features]
+
+    # Model prediction (0 = Rejected, 1 = Approved)
+    prediction = classifier.predict(input_data_filtered)
+    probabilities = classifier.predict_proba(input_data_filtered)  # Get prediction probabilities
+    
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
-    return pred_label, input_data, scaled_input, probabilities
-
-
+    return pred_label, input_data, input_data_filtered, probabilities
 
 # Function to create feature importance plot
 def plot_feature_importance(features, coefficients):
@@ -116,12 +122,9 @@ def plot_feature_importance(features, coefficients):
     plt.tight_layout()
     return plt
 
-
-
-
-
 # Main Streamlit app
 def main():
+    # Initialize database
     init_db()
 
     # App layout
@@ -152,34 +155,78 @@ def main():
         """,
         unsafe_allow_html=True
     )
+
+    # User inputs
     Gender = st.selectbox("Gender", ("Male", "Female"))
     Married = st.selectbox("Married", ("Yes", "No"))
-    Dependents = st.number_input("Dependents (0-5)", min_value=0, max_value=5, step=1)
+    Dependents = st.selectbox("Dependents", (0, 1, 2, 3, 4, 5))
     Self_Employed = st.selectbox("Self Employed", ("Yes", "No"))
     Loan_Amount = st.number_input("Loan Amount", min_value=0.0)
     Property_Area = st.selectbox("Property Area", ("Urban", "Rural", "Semi-urban"))
     Credit_History = st.selectbox("Credit History", ("Unclear Debts", "Clear Debts"))
-    Education = st.selectbox("Education", ("Undergraduate", "Graduate"))
-    ApplicantIncome = st.number_input("Applicant's Yearly Income", min_value=0.0)
-    CoapplicantIncome = st.number_input("Co-applicant's Yearly Income", min_value=0.0)
+    Education_1 = st.selectbox('Education', ("Under_Graduate", "Graduate"))
+    ApplicantIncome = st.number_input("Applicant's yearly Income", min_value=0.0)
+    CoapplicantIncome = st.number_input("Co-applicant's yearly Income", min_value=0.0)
     Loan_Amount_Term = st.number_input("Loan Term (in months)", min_value=0.0)
 
+    # Prediction and database saving
     if st.button("Predict"):
-        result, original_data, scaled_data, probabilities = prediction(
-            Credit_History, Education, ApplicantIncome, CoapplicantIncome, Loan_Amount_Term
+        result, input_data, input_data_filtered, probabilities = prediction(
+            Credit_History,
+            Education_1,
+            ApplicantIncome,
+            CoapplicantIncome,
+            Loan_Amount_Term
         )
 
+        # Save data to database
         save_to_database(Gender, Married, Dependents, Self_Employed, Loan_Amount, Property_Area, 
-                         Credit_History, Education, ApplicantIncome, CoapplicantIncome, 
+                         Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, 
                          Loan_Amount_Term, result)
 
+        # Display the prediction
         if result == "Approved":
-            st.success(f"Your loan is Approved! (Probability: {probabilities[0][1]:.2f})")
+            st.success(f"Your loan is Approved! (Probability: {probabilities[0][1]:.2f})", icon="✅")
         else:
-            st.error(f"Your loan is Rejected! (Probability: {probabilities[0][0]:.2f})")
+            st.error(f"Your loan is Rejected! (Probability: {probabilities[0][0]:.2f})", icon="❌")
 
-        plot_feature_importance()
+        # Show prediction values and scaled values
+        st.subheader("Prediction Value")
+        st.write(input_data)
 
+        st.subheader("Input Data (Scaled)")
+        st.write(pd.DataFrame(input_data_filtered, columns=input_data.columns))
+
+        # Calculate feature contributions
+        coefficients = classifier.coef_[0]
+        feature_contributions = coefficients * input_data_filtered.iloc[0]
+
+        # Create a DataFrame for visualization
+        feature_df = pd.DataFrame({
+            'Feature': input_data.columns,
+            'Contribution': feature_contributions
+        }).sort_values(by="Contribution", ascending=False)
+
+        # Plot feature contributions
+        st.subheader("Feature Contributions")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        colors = ['green' if val >= 0 else 'red' for val in feature_df['Contribution']]
+        ax.barh(feature_df['Feature'], feature_df['Contribution'], color=colors)
+        ax.set_xlabel("Contribution to Prediction")
+        ax.set_ylabel("Features")
+        ax.set_title("Feature Contributions to Prediction")
+        st.pyplot(fig)
+
+        # Add explanations for the features
+        st.subheader("Feature Contribution Explanations")
+        for index, row in feature_df.iterrows():
+            if row['Contribution'] >= 0:
+                explanation = f"The feature '{row['Feature']}' positively influenced the loan approval."
+            else:
+                explanation = f"The feature '{row['Feature']}' negatively influenced the loan approval."
+            st.write(f"- {explanation}")
+
+    # Download database button
     if st.button("Download Database"):
         if os.path.exists("loan_data.db"):
             with open("loan_data.db", "rb") as f:
@@ -194,4 +241,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
