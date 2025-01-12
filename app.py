@@ -23,7 +23,7 @@ if not os.path.exists("scaler.pkl"):
         file.write(scaler_response.content)
 
 # Load the trained model
-with open("MLP_model.pkl", "rb") as model_file:
+with open("Logistic_Regression_model.pkl", "rb") as model_file:
     classifier = pickle.load(model_file)
 
 # Load the Min-Max scaler
