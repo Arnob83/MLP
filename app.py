@@ -10,6 +10,9 @@ import os
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/Logistic_Regression_model.pkl"
 scaler_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/scaler.pkl"
 
+x_train_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/X_train.pkl"
+
+
 # Download the model file and save it locally
 model_response = requests.get(model_url)
 with open("Logistic_Regression_model.pkl", "wb") as file:
@@ -27,6 +30,17 @@ with open("Logistic_Regression_model.pkl", "rb") as model_file:
 # Load the scaler
 with open("scaler.pkl", "rb") as scaler_file:
     scaler = pickle.load(scaler_file)
+
+# Download and save the X_train.pkl file
+response_x_train = requests.get(x_train_url)
+with open("X_train.pkl", "wb") as file:
+    file.write(response_x_train.content)
+
+# Load X_train
+with open("X_train.pkl", "rb") as file:
+    X_train = pickle.load(file)
+
+
 
 # Initialize SQLite database
 def init_db():
@@ -110,6 +124,53 @@ def prediction(Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, 
     
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, raw_input_data, input_data_filtered, probabilities
+
+
+
+
+# Explanation function
+def explain_prediction(input_data_filtered, final_result):
+    """
+    Analyze features and provide a detailed explanation of the prediction,
+    along with a bar chart for SHAP values.
+    """
+    # Initialize SHAP Linear Explainer with the background dataset
+    explainer = shap.LinearExplainer(classifier, X_train, feature_perturbation="interventional")
+    shap_values = explainer.shap_values(input_data_filtered)
+
+    # Extract SHAP values for the input data
+    shap_values_for_input = shap_values[0]  # SHAP values for the first row of input_data
+
+    # Prepare feature importance data
+    feature_names = input_data_filtered.columns
+
+    explanation_text = f"**Why your loan is {final_result}:**\n\n"
+    for feature, shap_value in zip(feature_names, shap_values_for_input):
+        explanation_text += (
+            f"- **{feature}**: {'Positive' if shap_value > 0 else 'Negative'} contribution with a SHAP value of {shap_value:.2f}\n"
+        )
+
+    # Identify the main factors contributing to the decision
+    if final_result == 'Rejected':
+        explanation_text += "\nThe loan was rejected because the negative contributions outweighed the positive ones."
+    else:
+        explanation_text += "\nThe loan was approved because the positive contributions outweighed the negative ones."
+
+    # Create bar chart for SHAP values
+    plt.figure(figsize=(8, 5))
+    plt.barh(feature_names, shap_values_for_input, color=["green" if val > 0 else "red" for val in shap_values_for_input])
+    plt.xlabel("SHAP Value (Impact on Prediction)")
+    plt.ylabel("Features")
+    plt.title("Feature Contributions to Prediction")
+    plt.tight_layout()
+
+    return explanation_text, plt
+
+
+
+
+
+
 
 # Function to create feature importance plot
 def plot_feature_importance(features, coefficients):
@@ -201,40 +262,20 @@ def main():
         st.subheader("Input Data (Scaled)")
         st.write(pd.DataFrame(input_data_filtered, columns=raw_input_data.columns))  # This will display the scaled values
 
-        # Calculate feature contributions
-        coefficients = classifier.coef_[0]
+
+
+# Explanation: Feature Contributions and SHAP Bar Plot
+        st.header("Explanation of Prediction")
+        explanation_text, bar_chart = explain_prediction(input_data_filtered, final_result=result)
+        st.write(explanation_text)
+        st.pyplot(bar_chart)
+
+
+
+
         
-        # Handle non-scaled features separately and ensure they are included in the contribution calculation
-        input_data_filtered["Credit_History"] = raw_input_data["Credit_History"].values
-        input_data_filtered["Education_1"] = raw_input_data["Education_1"].values
-
-        # Compute the contributions as before, but now with the raw (non-scaled) values for Credit_History and Education_1
-        feature_contributions = coefficients * input_data_filtered.iloc[0]
-
-        # Create a DataFrame for visualization
-        feature_df = pd.DataFrame({
-            'Feature': raw_input_data.columns,
-            'Contribution': feature_contributions
-        }).sort_values(by="Contribution", ascending=False)
-
-        # Plot feature contributions
-        st.subheader("Feature Contributions")
-        fig, ax = plt.subplots(figsize=(8, 5))
-        colors = ['green' if val >= 0 else 'red' for val in feature_df['Contribution']]
-        ax.barh(feature_df['Feature'], feature_df['Contribution'], color=colors)
-        ax.set_xlabel("Contribution to Prediction")
-        ax.set_ylabel("Features")
-        ax.set_title("Feature Contributions to Prediction")
-        st.pyplot(fig)
-
-        # Add explanations for the features
-        st.subheader("Feature Contribution Explanations")
-        for index, row in feature_df.iterrows():
-            if row['Contribution'] >= 0:
-                explanation = f"The feature '{row['Feature']}' positively influenced the loan approval."
-            else:
-                explanation = f"The feature '{row['Feature']}' negatively influenced the loan approval."
-            st.write(f"- {explanation}")
+        # Calculate feature contributions
+        
 
     # Download database button
     if st.button("Download Database"):
