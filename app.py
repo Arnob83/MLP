@@ -7,8 +7,8 @@ import requests
 import os
 
 # URLs for the model and scaler files in your GitHub repository
-model_url = "https://raw.githubusercontent.com/Arnob83/LGR/main/Logistic_Regression_model.pkl"
-scaler_url = "https://raw.githubusercontent.com/Arnob83/LGR/main/scaler.pkl"
+model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/Logistic_Regression_model.pkl"
+scaler_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/scaler.pkl"
 
 # Download the model file and save it locally
 model_response = requests.get(model_url)
