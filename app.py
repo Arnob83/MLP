@@ -111,17 +111,27 @@ def plot_feature_importance():
     # Create a DataFrame to show feature importance
     feature_importance_df = pd.DataFrame({
         'Feature': feature_names,
-        'Importance': importance
+        'Importance': importance,
+        'Coefficient': coefficients  # Adding coefficients to the plot for more details
     }).sort_values(by='Importance', ascending=False)
 
     # Plotting the feature importance
     st.subheader("Feature Importance")
     st.write(feature_importance_df)
 
-    fig, ax = plt.subplots()
-    ax.barh(feature_importance_df['Feature'], feature_importance_df['Importance'])
+    # Creating the horizontal bar plot
+    fig, ax = plt.subplots(figsize=(8, 5))  # Adjust the size of the plot as per your need
+    colors = ["green" if coef > 0 else "red" for coef in feature_importance_df['Coefficient']]  # Color bars based on coefficient sign
+    bars = ax.barh(feature_importance_df['Feature'], feature_importance_df['Importance'], color=colors)
+
+    # Annotating the bars with coefficient values
+    for bar, coef in zip(bars, feature_importance_df['Coefficient']):
+        ax.text(bar.get_width(), bar.get_y() + bar.get_height() / 2, f"{coef:.4f}", va='center')
+
     ax.set_xlabel('Importance')
     ax.set_title('Feature Importance based on Logistic Regression Coefficients')
+
+    # Show the plot in Streamlit
     st.pyplot(fig)
 
 # Main Streamlit app
