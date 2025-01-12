@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import os
+import shap
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/Logistic_Regression_model.pkl"
