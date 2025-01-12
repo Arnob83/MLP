@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import os
-import shap
+import numpy as np
 
 # URLs for the model and scaler files in your GitHub repository
 model_url = "https://raw.githubusercontent.com/Arnob83/MLP/main/Logistic_Regression_model.pkl"
@@ -100,29 +100,29 @@ def prediction(Credit_History, Education, ApplicantIncome, CoapplicantIncome, Lo
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
     return pred_label, input_data, scaled_input, probabilities
 
-# SHAP explanation functions
-def shap_force_and_decision_plot(original_data, scaled_data):
-    combined_data = pd.concat([scaled_data, original_data], axis=1)
+# Feature importance function using coefficients
+def plot_feature_importance():
+    feature_names = classifier.feature_names_in_
+    coefficients = classifier.coef_[0]
 
-    explainer = shap.Explainer(classifier.predict_proba, combined_data)
+    # Absolute value of coefficients for feature importance
+    importance = np.abs(coefficients)
 
-    shap_values = explainer(combined_data)
+    # Create a DataFrame to show feature importance
+    feature_importance_df = pd.DataFrame({
+        'Feature': feature_names,
+        'Importance': importance
+    }).sort_values(by='Importance', ascending=False)
 
-    st.subheader("SHAP Force Plot (Single Prediction)")
-    force_plot = shap.force_plot(
-        explainer.expected_value[1],
-        shap_values[0, :, 1],
-        original_data.iloc[0, :]
-    )
-    st.pyplot(shap.plots._force._matplotlib(force_plot))  # Render in Streamlit
+    # Plotting the feature importance
+    st.subheader("Feature Importance")
+    st.write(feature_importance_df)
 
-    st.subheader("SHAP Decision Plot (Single Prediction)")
-    shap.decision_plot(
-        explainer.expected_value[1],
-        shap_values[..., 1],
-        original_data
-    )
-    st.pyplot()
+    fig, ax = plt.subplots()
+    ax.barh(feature_importance_df['Feature'], feature_importance_df['Importance'])
+    ax.set_xlabel('Importance')
+    ax.set_title('Feature Importance based on Logistic Regression Coefficients')
+    st.pyplot(fig)
 
 # Main Streamlit app
 def main():
@@ -156,8 +156,7 @@ def main():
         else:
             st.error(f"Your loan is Rejected! (Probability: {probabilities[0][0]:.2f})")
 
-        st.subheader("SHAP Feature Importance")
-        shap_force_and_decision_plot(original_data, scaled_data)
+        plot_feature_importance()
 
     if st.button("Download Database"):
         if os.path.exists("loan_data.db"):
