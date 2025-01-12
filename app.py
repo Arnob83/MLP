@@ -83,6 +83,9 @@ def prediction(Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, 
         columns=["Credit_History", "Education_1", "ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]
     )
 
+    # Store raw data before scaling
+    raw_input_data = input_data.copy()
+
     # Scale only the relevant features (ApplicantIncome, CoapplicantIncome, Loan_Amount_Term)
     features_to_scale = input_data[["ApplicantIncome", "CoapplicantIncome", "Loan_Amount_Term"]]
     scaled_features = scaler.transform(features_to_scale)
@@ -106,7 +109,7 @@ def prediction(Credit_History, Education_1, ApplicantIncome, CoapplicantIncome, 
     probabilities = classifier.predict_proba(input_data_filtered)  # Get prediction probabilities
     
     pred_label = 'Approved' if prediction[0] == 1 else 'Rejected'
-    return pred_label, input_data, input_data_filtered, probabilities
+    return pred_label, raw_input_data, input_data_filtered, probabilities
 
 # Function to create feature importance plot
 def plot_feature_importance(features, coefficients):
@@ -171,7 +174,7 @@ def main():
 
     # Prediction and database saving
     if st.button("Predict"):
-        result, input_data, input_data_filtered, probabilities = prediction(
+        result, raw_input_data, input_data_filtered, probabilities = prediction(
             Credit_History,
             Education_1,
             ApplicantIncome,
@@ -190,27 +193,27 @@ def main():
         else:
             st.error(f"Your loan is Rejected! (Probability: {probabilities[0][0]:.2f})", icon="❌")
 
-        # Show the original user input data (without scaling)
-        st.subheader("User Input Data")
-        st.write(input_data)  # Display the raw user input data (before scaling)
+        # Show the original user input data (before scaling)
+        st.subheader("User Input Data (Raw)")
+        st.write(raw_input_data)  # Display the raw user input data (before scaling)
 
         # Optionally show the scaled data (only if needed for feature importance or other insights)
         st.subheader("Input Data (Scaled)")
-        st.write(pd.DataFrame(input_data_filtered, columns=input_data.columns))  # This will display the scaled values
+        st.write(pd.DataFrame(input_data_filtered, columns=raw_input_data.columns))  # This will display the scaled values
 
         # Calculate feature contributions
         coefficients = classifier.coef_[0]
         
         # Handle non-scaled features separately and ensure they are included in the contribution calculation
-        input_data_filtered["Credit_History"] = input_data["Credit_History"].values
-        input_data_filtered["Education_1"] = input_data["Education_1"].values
+        input_data_filtered["Credit_History"] = raw_input_data["Credit_History"].values
+        input_data_filtered["Education_1"] = raw_input_data["Education_1"].values
 
         # Compute the contributions as before, but now with the raw (non-scaled) values for Credit_History and Education_1
         feature_contributions = coefficients * input_data_filtered.iloc[0]
 
         # Create a DataFrame for visualization
         feature_df = pd.DataFrame({
-            'Feature': input_data.columns,
+            'Feature': raw_input_data.columns,
             'Contribution': feature_contributions
         }).sort_values(by="Contribution", ascending=False)
 
